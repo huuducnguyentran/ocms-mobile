@@ -15,17 +15,18 @@ export interface ProfileData {
 
 export interface ProfileResponse {
   data: ProfileData;
-  fullName?: string;
+  success: boolean;
 }
 
 export const profileService = {
   // Get user profile
   getProfile: async (): Promise<ProfileResponse> => {
     try {
-      const response = await axiosInstance.get<ProfileData>(USER_URLS.PROFILE);
+      const response = await axiosInstance.get<ProfileResponse>(USER_URLS.PROFILE);
+      // API returns { data: ProfileData, success: boolean }
       return {
-        data: response.data,
-        fullName: response.data.fullName,
+        data: response.data.data,
+        success: response.data.success,
       };
     } catch (error) {
       throw error;

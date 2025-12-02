@@ -39,8 +39,8 @@ export default function NavBar({ visible, onClose }: NavBarProps) {
       try {
         const response = await profileService.getProfile();
         setProfile(response.data);
-        if (response.fullName) {
-          await storage.setItem("fullName", response.fullName);
+        if (response.data.fullName) {
+          await storage.setItem("fullName", response.data.fullName);
         }
       } catch (error) {
         console.error("Failed to fetch profile:", error);
