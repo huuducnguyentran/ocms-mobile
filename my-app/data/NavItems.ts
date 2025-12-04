@@ -17,7 +17,14 @@ const navItems: NavItem[] = [
     label: "Home",
     icon: "home",
     path: "/(tabs)",
-    roles: ["Administrator", "Instructor", "Trainee", "Education Officer", "Director", "AOC Manager"],
+    roles: [
+      "Administrator",
+      "Instructor",
+      "Trainee",
+      "Education Officer",
+      "Director",
+      "AOC Manager",
+    ],
   },
   // ──────────────────────────────
   // 🎓 Learning Management
@@ -33,7 +40,13 @@ const navItems: NavItem[] = [
     key: "4",
     label: "Course",
     icon: "book",
-    roles: ["Administrator", "Instructor", "Trainee", "Education Officer", "Director"],
+    roles: [
+      "Administrator",
+      "Instructor",
+      "Trainee",
+      "Education Officer",
+      "Director",
+    ],
     children: [
       {
         key: "4-1",
@@ -136,7 +149,13 @@ const navItems: NavItem[] = [
     label: "Request",
     icon: "form",
     path: "/request",
-    roles: ["Administrator", "Instructor", "Trainee", "Education Officer", "Director"],
+    roles: [
+      "Administrator",
+      "Instructor",
+      "Trainee",
+      "Education Officer",
+      "Director",
+    ],
   },
   // ──────────────────────────────
   // 🎖️ Certification & Decisions
@@ -150,7 +169,7 @@ const navItems: NavItem[] = [
       {
         key: "13-1",
         label: "All Certificate",
-        path: "/all-certificates",
+        path: "/certificate_screen",
         roles: ["Administrator", "Director"],
       },
       {
@@ -170,7 +189,7 @@ const navItems: NavItem[] = [
       {
         key: "15-1",
         label: "All Decision",
-        path: "/all-decisions",
+        path: "/decision_screen",
         roles: ["Administrator", "Director"],
       },
       {
@@ -303,4 +322,3 @@ const navItems: NavItem[] = [
 ];
 
 export default navItems;
-

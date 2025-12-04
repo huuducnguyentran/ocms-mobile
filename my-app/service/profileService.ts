@@ -15,34 +15,46 @@ export interface ProfileData {
 
 export interface ProfileResponse {
   data: ProfileData;
-  fullName?: string;
+  fullName: string | undefined;
 }
 
 export const profileService = {
-  // Get user profile
+  /** ---------------------------
+   * GET PROFILE
+   * --------------------------- */
   getProfile: async (): Promise<ProfileResponse> => {
     try {
       const response = await axiosInstance.get<ProfileData>(USER_URLS.PROFILE);
+
       return {
         data: response.data,
-        fullName: response.data.fullName,
+        fullName: response.data?.fullName,
       };
     } catch (error) {
+      console.error("❌ getProfile error:", error);
       throw error;
     }
   },
 
-  // Update user profile
+  /** ---------------------------
+   * UPDATE PROFILE
+   * --------------------------- */
   updateProfile: async (profileData: Partial<ProfileData>): Promise<any> => {
     try {
-      const response = await axiosInstance.put(USER_URLS.UPDATE_PROFILE, profileData);
+      const response = await axiosInstance.put(
+        USER_URLS.UPDATE_PROFILE,
+        profileData
+      );
       return response.data;
     } catch (error) {
+      console.error("❌ updateProfile error:", error);
       throw error;
     }
   },
 
-  // Change password
+  /** ---------------------------
+   * CHANGE PASSWORD
+   * --------------------------- */
   changePassword: async (
     currentPassword: string,
     newPassword: string,
@@ -56,11 +68,14 @@ export const profileService = {
       });
       return response.data;
     } catch (error) {
+      console.error("❌ changePassword error:", error);
       throw error;
     }
   },
 
-  // Upload avatar
+  /** ---------------------------
+   * UPLOAD AVATAR (FormData)
+   * --------------------------- */
   uploadAvatar: async (file: FormData): Promise<any> => {
     try {
       const response = await axiosInstance.post(USER_URLS.UPLOAD_AVATAR, file, {
@@ -68,10 +83,11 @@ export const profileService = {
           "Content-Type": "multipart/form-data",
         },
       });
+
       return response.data;
     } catch (error) {
+      console.error("❌ uploadAvatar error:", error);
       throw error;
     }
   },
 };
-
