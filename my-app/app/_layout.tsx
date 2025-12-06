@@ -161,6 +161,10 @@ function RootLayoutNav() {
           <Stack.Screen name="(authen)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(certificate)" options={{ headerShown: false }} />
+          <Stack.Screen name="(decision)" options={{ headerShown: false }} />
+          <Stack.Screen name="(course)" options={{ headerShown: false }} />
+          <Stack.Screen name="(subject)" options={{ headerShown: false }} />
+          <Stack.Screen name="(plan)" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen
             name="change-password"

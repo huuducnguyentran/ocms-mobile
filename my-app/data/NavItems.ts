@@ -51,7 +51,7 @@ const navItems: NavItem[] = [
       {
         key: "4-1",
         label: "All Courses",
-        path: "/all-courses",
+        path: "/course_screen",
         roles: ["Administrator", "Instructor", "Director", "Education Officer"],
       },
       {
@@ -73,7 +73,7 @@ const navItems: NavItem[] = [
       {
         key: "6-1",
         label: "View Subjects",
-        path: "/subject",
+        path: "/subject_status_screen",
         roles: ["Administrator", "Instructor", "Education Officer", "Director"],
       },
     ],
@@ -301,7 +301,7 @@ const navItems: NavItem[] = [
       {
         key: "23-2",
         label: "Plans Status",
-        path: "/plan-status",
+        path: "/plan_status_screen",
         roles: ["Director"],
       },
       {

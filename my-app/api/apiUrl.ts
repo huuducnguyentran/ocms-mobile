@@ -122,7 +122,7 @@ export const SUBJECT_URLS = {
   DELETE: "/Subject",
   IMPORT: "/Subject/import",
   APPROVE_BATCH: "/Subject/approve/batch",
-  REJECT_BATCH: "/Subject/approve/batch",
+  REJECT_BATCH: "/Subject/reject/batch",
   APPROVE: "/Subject",
   REJECT: "/Subject",
   REQUEST_NEW: "/Subject",
