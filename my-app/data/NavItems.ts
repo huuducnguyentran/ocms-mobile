@@ -82,13 +82,13 @@ const navItems: NavItem[] = [
     key: "8",
     label: "Classroom",
     icon: "file-protect",
-    roles: ["Administrator", "Education Officer"],
+    roles: ["Administrator", "Education Officer", "Trainee"],
     children: [
       {
         key: "8-1",
         label: "View Classes",
-        path: "/class",
-        roles: ["Administrator", "Education Officer"],
+        path: "/class_screen",
+        roles: ["Administrator", "Education Officer", "Trainee"],
       },
       {
         key: "8-2",
@@ -111,34 +111,34 @@ const navItems: NavItem[] = [
     key: "9",
     label: "Accomplishments",
     icon: "trophy",
-    path: "/accomplishments",
+    path: "/my_certificate_screen",
     roles: ["Trainee"],
   },
-  {
-    key: "10",
-    label: "Grade",
-    icon: "bar-chart",
-    roles: ["Instructor", "Trainee"],
-    children: [
-      {
-        key: "10-1",
-        label: "Manage Grades",
-        path: "/class/import-grades",
-        roles: ["Instructor"],
-      },
-      {
-        key: "10-3",
-        label: "My Grades",
-        path: "/trainee-grade",
-        roles: ["Trainee"],
-      },
-    ],
-  },
+  // {
+  //   key: "10",
+  //   label: "Grade",
+  //   icon: "bar-chart",
+  //   roles: ["Instructor", "Trainee"],
+  //   children: [
+  //     {
+  //       key: "10-1",
+  //       label: "Manage Grades",
+  //       path: "/class/import-grades",
+  //       roles: ["Instructor"],
+  //     },
+  //     {
+  //       key: "10-3",
+  //       label: "My Grades",
+  //       path: "/trainee-grade",
+  //       roles: ["Trainee"],
+  //     },
+  //   ],
+  // },
   {
     key: "10-4",
     label: "Curriculum",
     icon: "book",
-    path: "/curriculum",
+    path: "/curriculum_screen",
     roles: ["Trainee"],
   },
   // ──────────────────────────────

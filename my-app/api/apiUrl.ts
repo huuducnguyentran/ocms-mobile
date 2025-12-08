@@ -16,6 +16,13 @@ export const AUTH_URLS = {
   DELETE_EXTERNAL_CERTIFICATE_IMAGE: "ExternalCertificate",
 };
 
+export const ATTENDANCE_URLS = {
+  GET_BY_CLASS_AND_SLOT: "/api/Attendance/class/{classId}/slot/{slot}", // GET /api/Attendance/class/{classId}/slot/{slot}
+  GET_BY_CLASS: "/api/Attendance/class/{classId}", // GET /api/Attendance/class/{classId}
+  CREATE: "/api/Attendance", // POST /api/Attendance
+  UPDATE: "/api/Attendance/{attendanceId}", // PUT /api/Attendance/{attendanceId}
+};
+
 export const USER_URLS = {
   PROFILE: "/User/profile",
   UPDATE_PROFILE: "/User/profile",
@@ -155,6 +162,7 @@ export const CLASS_URLS = {
   DELETE: "/Class",
   IMPORT_GRADES: "/Class",
   GET_MY_CLASSES: "/Class/me",
+  GET_MY_CLASSES_BY_ID: "/Class/me",
 };
 
 export const CLASSGROUP_URLS = {
