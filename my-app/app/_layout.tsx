@@ -11,6 +11,7 @@ import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { storage } from "@/utils/storage";
+import { PaperProvider } from "react-native-paper";
 
 // Remove default anchor to prevent auto-navigation to tabs
 // Authentication check will handle routing
@@ -154,25 +155,33 @@ function RootLayoutNav() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(authen)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="profile"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="change-password"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="modal"
-          options={{ presentation: "modal", title: "Modal" }}
-        />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <PaperProvider>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="(authen)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(certificate)" options={{ headerShown: false }} />
+          <Stack.Screen name="(decision)" options={{ headerShown: false }} />
+          <Stack.Screen name="(course)" options={{ headerShown: false }} />
+          <Stack.Screen name="(subject)" options={{ headerShown: false }} />
+          <Stack.Screen name="(plan)" options={{ headerShown: false }} />
+          <Stack.Screen name="(curriculum)" options={{ headerShown: false }} />
+          <Stack.Screen name="(class)" options={{ headerShown: false }} />
+          <Stack.Screen name="(make-report)" options={{ headerShown: false }} />
+          <Stack.Screen name="(grade)" options={{ headerShown: false }} />
+          <Stack.Screen name="(specialty)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="change-password"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="modal"
+            options={{ presentation: "modal", title: "Modal" }}
+          />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </PaperProvider>
   );
 }
 

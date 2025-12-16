@@ -39,7 +39,7 @@ export default function TopBar({ onMenuPress }: TopBarProps) {
   };
 
   const handleProfile = () => {
-    router.push("/profile" as any);
+    router.push("/profile_screen" as any);
   };
 
   const getInitials = (name?: string) => {
