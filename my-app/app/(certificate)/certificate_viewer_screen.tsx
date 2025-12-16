@@ -1,79 +1,61 @@
-import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator, Platform } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import {
+  View,
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+} from "react-native";
 import { WebView } from "react-native-webview";
 import { useLocalSearchParams } from "expo-router";
-import * as FileSystem from "expo-file-system";
-import * as IntentLauncher from "expo-intent-launcher"; // ✅ Android open file
-import * as Sharing from "expo-sharing"; // ✅ iOS fallback
-import { Buffer } from "buffer";
 import { getCertificateHtml } from "@/service/certificateService";
+import { Buffer } from "buffer";
+
+type CertificateResponse = {
+  success: boolean;
+  data: ArrayBuffer;
+  isPdf: boolean;
+};
 
 export default function CertificateViewerScreen() {
-  const { certificateId, isPdf } = useLocalSearchParams();
+  const { certificateId } = useLocalSearchParams<{ certificateId: string }>();
+
+  const webViewRef = useRef<WebView>(null);
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
-  const [pdfUri, setPdfUri] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (certificateId) loadCertificate(String(certificateId));
-  }, []);
-
-  const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-    return Buffer.from(buffer).toString("base64");
-  };
-
-  // ----------------------------------------------
-  // ✅ NEW: Auto-open PDF
-  // ----------------------------------------------
-  const openPdfFile = async (uri: string) => {
-    if (Platform.OS === "android") {
-      try {
-        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
-          data: uri,
-          flags: 1,
-          type: "application/pdf",
-        });
-      } catch (e) {
-        console.log("Android open PDF error:", e);
-      }
-      return;
+    if (certificateId) {
+      loadCertificate(certificateId);
     }
+  }, [certificateId]);
 
-    // iOS – must use sharing UI (auto-open is blocked)
-    if (Platform.OS === "ios") {
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri);
-      }
-      return;
-    }
-  };
-
+  /* ================= LOAD CERTIFICATE ================= */
   const loadCertificate = async (id: string) => {
     try {
-      const res = await getCertificateHtml(id);
+      setLoading(true);
+      setError(null);
+
+      const res: CertificateResponse = await getCertificateHtml(id);
 
       if (!res.success || !res.data) {
-        alert("Failed to load certificate");
-        return;
+        throw new Error("Failed to load certificate");
       }
 
-      const isPdfFile = res.isPdf;
-      const buffer: ArrayBuffer = res.data;
-
-      // ---------------------------
-      // 🔹 WEB
-      // ---------------------------
+      // Convert ArrayBuffer → Blob URL (WEB)
       if (Platform.OS === "web") {
-        const blob = new Blob([buffer], {
-          type: isPdfFile ? "application/pdf" : "text/html",
+        const blob = new Blob([res.data], {
+          type: res.isPdf ? "application/pdf" : "text/html",
         });
 
         const url = URL.createObjectURL(blob);
 
-        if (isPdfFile) {
-          window.open(url); // Auto-download/open
-          setPdfUri(url);
+        if (res.isPdf) {
+          window.open(url);
+          setPdfUrl(url);
         } else {
           const htmlText = await blob.text();
           setHtmlContent(htmlText);
@@ -83,45 +65,69 @@ export default function CertificateViewerScreen() {
         return;
       }
 
-      // ---------------------------
-      // 🔹 MOBILE (Android/iOS)
-      // ---------------------------
-      const base64 = arrayBufferToBase64(buffer);
-      const fileName = isPdfFile
-        ? `certificate_${id}.pdf`
-        : `certificate_${id}.html`;
-      const fileUri = FileSystem.cacheDirectory + fileName;
+      // ================= PDF =================
+      if (res.isPdf) {
+        const base64 = Buffer.from(res.data).toString("base64");
+        const rawPdfUrl = `data:application/pdf;base64,${base64}`;
 
-      await FileSystem.writeAsStringAsync(fileUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+        // ANDROID → Google PDF Viewer (stable)
+        if (Platform.OS === "android") {
+          const googleViewerUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(
+            rawPdfUrl
+          )}`;
+          setPdfUrl(googleViewerUrl);
+        } else {
+          // iOS
+          setPdfUrl(rawPdfUrl);
+        }
 
-      if (isPdfFile) {
-        setPdfUri(fileUri);
-
-        // ⭐ AUTO-OPEN THE PDF
-        openPdfFile(fileUri);
-      } else {
-        const htmlDecoded = Buffer.from(base64, "base64").toString("utf8");
-        setHtmlContent(htmlDecoded);
+        setLoading(false);
+        return;
       }
 
+      // ================= HTML =================
+      const htmlDecoded = Buffer.from(res.data).toString("utf8");
+      setHtmlContent(htmlDecoded);
       setLoading(false);
     } catch (err) {
-      console.log("Error loading certificate", err);
-      alert("Error loading certificate");
+      console.error("[CertificateViewer] Error:", err);
+      setError("Unable to load certificate");
+      setLoading(false);
     }
   };
 
+  /* ================= LOADING ================= */
   if (loading) {
-    return <ActivityIndicator size="large" style={{ marginTop: 30 }} />;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#3620AC" />
+        <Text style={styles.loadingText}>Loading certificate...</Text>
+      </View>
+    );
   }
 
-  // PDF will auto-download & auto-open, but we keep WebView fallback
+  /* ================= ERROR ================= */
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  /* ================= RENDER ================= */
   return (
-    <View style={{ flex: 1 }}>
-      {isPdf === "true" ? (
-        <WebView source={{ uri: pdfUri! }} style={{ flex: 1 }} />
+    <View style={styles.container}>
+      {pdfUrl ? (
+        <WebView
+          ref={webViewRef}
+          source={{ uri: pdfUrl }}
+          style={{ flex: 1 }}
+          startInLoadingState
+          javaScriptEnabled
+          domStorageEnabled
+          originWhitelist={["*"]}
+        />
       ) : (
         <WebView
           originWhitelist={["*"]}
@@ -132,3 +138,31 @@ export default function CertificateViewerScreen() {
     </View>
   );
 }
+
+/* ================= STYLES ================= */
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+
+  loadingText: {
+    marginTop: 10,
+    color: "#3620AC",
+    fontSize: 14,
+  },
+
+  errorText: {
+    color: "#dc2626",
+    fontSize: 16,
+    textAlign: "center",
+  },
+});

@@ -35,7 +35,7 @@ const navItems: NavItem[] = [
     key: "2",
     label: "Specialty",
     icon: "appstore",
-    path: "/specialty",
+    path: "/specialty_screen",
     roles: ["Administrator", "Instructor", "Education Officer"],
   },
   {

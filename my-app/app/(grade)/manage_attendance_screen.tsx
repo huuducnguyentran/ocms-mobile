@@ -9,7 +9,7 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
-import { Menu, Icon, Provider } from "react-native-paper";
+import { Menu, Icon, Provider, RadioButton, Button } from "react-native-paper";
 
 import {
   addAttendance,
@@ -35,10 +35,13 @@ export default function AttendancePage() {
   const [myClasses, setMyClasses] = useState<any[]>([]);
   const [attendanceList, setAttendanceList] = useState<any[]>([]);
 
+  const [draftStatus, setDraftStatus] = useState<Record<string, string>>({});
+
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
   const [menuVisible, setMenuVisible] = useState(false);
+
+  /* ================= LOAD ================= */
 
   const loadMyClasses = async () => {
     const res = await getMyClasses();
@@ -54,8 +57,18 @@ export default function AttendancePage() {
     if (!classId) return;
     setLoading(true);
     const res = await getAttendanceByClassAndSlot(classId, slot);
-    if (res.success) setAttendanceList(res.data);
-    else Alert.alert("Error", res.message);
+    if (res.success) {
+      setAttendanceList(res.data);
+
+      // init draft state
+      const map: Record<string, string> = {};
+      res.data.forEach((r: any) => {
+        map[r.traineeAssignationId] = r.status || STATUS.ABSENT;
+      });
+      setDraftStatus(map);
+    } else {
+      Alert.alert("Error", res.message);
+    }
     setLoading(false);
   };
 
@@ -73,105 +86,118 @@ export default function AttendancePage() {
     setRefreshing(false);
   };
 
-  const handleStatusChange = async (record: any, status: string) => {
-    if (!record.attendanceId) {
-      const res = await addAttendance({
-        traineeAssignationId: record.traineeAssignationId,
-        slot,
-        status,
-      });
-      if (!res.success) return Alert.alert("Error", res.message);
-    } else {
-      const res = await updateAttendance(record.attendanceId, { status });
-      if (!res.success) return Alert.alert("Error", res.message);
+  /* ================= SAVE ================= */
+
+  const saveAttendance = async () => {
+    try {
+      for (const record of attendanceList) {
+        const status = draftStatus[record.traineeAssignationId];
+
+        if (!record.attendanceId) {
+          await addAttendance({
+            traineeAssignationId: record.traineeAssignationId,
+            slot,
+            status,
+          });
+        } else {
+          await updateAttendance(record.attendanceId, { status });
+        }
+      }
+
+      Alert.alert("Success", "Attendance saved successfully");
+      loadAttendance();
+    } catch (err) {
+      Alert.alert("Error", "Failed to save attendance");
     }
-    loadAttendance();
   };
+
+  /* ================= RENDER ITEM ================= */
 
   const renderItem = (item: any) => (
     <View key={item.traineeAssignationId} style={styles.card}>
       <View style={styles.leftCol}>
-        <Text style={styles.name}>{item.traineeName}</Text>
-        <Text style={styles.subText}>ID: {item.traineeId || "--"}</Text>
+        <Text style={styles.name}>
+          {item.traineeName} ({item.traineeId})
+        </Text>
+
+        <View style={styles.radioRow}>
+          <RadioButton
+            value={STATUS.PRESENT}
+            status={
+              draftStatus[item.traineeAssignationId] === STATUS.PRESENT
+                ? "checked"
+                : "unchecked"
+            }
+            onPress={() =>
+              setDraftStatus((p) => ({
+                ...p,
+                [item.traineeAssignationId]: STATUS.PRESENT,
+              }))
+            }
+            color={PRIMARY}
+          />
+          <Text style={styles.radioText}>Present</Text>
+
+          <RadioButton
+            value={STATUS.ABSENT}
+            status={
+              draftStatus[item.traineeAssignationId] === STATUS.ABSENT
+                ? "checked"
+                : "unchecked"
+            }
+            onPress={() =>
+              setDraftStatus((p) => ({
+                ...p,
+                [item.traineeAssignationId]: STATUS.ABSENT,
+              }))
+            }
+            color={PRIMARY}
+          />
+          <Text style={styles.radioText}>Absent</Text>
+        </View>
       </View>
 
-      <View style={styles.rightCol}>
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor:
-                item.status === STATUS.PRESENT ? SUCCESS : DANGER,
-            },
-          ]}
-        >
-          <Text style={styles.badgeText}>{item.status || "Absent"}</Text>
-        </View>
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.greenBtn]}
-            onPress={() => handleStatusChange(item, STATUS.PRESENT)}
-          >
-            <Icon source="check" size={22} color={SUCCESS} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.redBtn]}
-            onPress={() => handleStatusChange(item, STATUS.ABSENT)}
-          >
-            <Icon source="close" size={22} color={DANGER} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
     </View>
   );
+
+  /* ================= SLOTS ================= */
 
   const selectedClass = myClasses.find((c) => c.classId === classId);
 
   const renderSlots = () => {
     if (!selectedClass) return null;
-
-    const totalSlots = selectedClass.slot;
-    const slotArray = Array.from({ length: totalSlots }, (_, i) => i + 1);
-
-    const isScrollable = totalSlots > 5;
-
     return (
-      <ScrollView
-        horizontal={isScrollable}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.slotBar,
-          isScrollable && { paddingHorizontal: 10 },
-        ]}
-      >
-        {slotArray.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={[
-              styles.slotButton,
-              slot === s ? styles.slotActive : styles.slotInactive,
-            ]}
-            onPress={() => setSlot(s)}
-          >
-            <Text
-              style={
-                slot === s ? styles.slotTextActive : styles.slotTextInactive
-              }
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {Array.from({ length: selectedClass.slot }, (_, i) => i + 1).map(
+          (s) => (
+            <TouchableOpacity
+              key={s}
+              style={[
+                styles.slotButton,
+                slot === s ? styles.slotActive : styles.slotInactive,
+              ]}
+              onPress={() => setSlot(s)}
             >
-              Slot {s}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={
+                  slot === s ? styles.slotTextActive : styles.slotTextInactive
+                }
+              >
+                Slot {s}
+              </Text>
+            </TouchableOpacity>
+          )
+        )}
       </ScrollView>
     );
   };
 
+  /* ================= UI ================= */
+
   return (
     <Provider>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Attendance</Text>
 
@@ -184,24 +210,18 @@ export default function AttendancePage() {
                 onPress={() => setMenuVisible(true)}
               >
                 <Text style={styles.classText}>
-                  {classId
-                    ? (() => {
-                        const selected = myClasses.find(
-                          (c) => c.classId === classId
-                        );
-                        return `${selected.classId} – ${selected.subjectId} – ${selected.subjectName}`;
-                      })()
+                  {selectedClass
+                    ? `${selectedClass.classId} – ${selectedClass.subjectName}`
                     : "Select Class"}
                 </Text>
                 <Icon source="chevron-down" size={20} color={PRIMARY} />
               </TouchableOpacity>
             }
-            contentStyle={{ maxHeight: 300 }} // 👈 FIX overflow on mobile
           >
             {myClasses.map((c) => (
               <Menu.Item
                 key={c.classId}
-                title={`${c.classId} – ${c.subjectId} – ${c.subjectName}`}
+                title={`${c.classId} – ${c.subjectName}`}
                 onPress={() => {
                   setClassId(c.classId);
                   setMenuVisible(false);
@@ -211,7 +231,6 @@ export default function AttendancePage() {
           </Menu>
         </View>
 
-        {/* Body */}
         <ScrollView
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -219,22 +238,34 @@ export default function AttendancePage() {
           style={styles.body}
         >
           {loading ? (
-            <View style={styles.loaderBox}>
-              <ActivityIndicator size="large" color={PRIMARY} />
-            </View>
-          ) : attendanceList.length === 0 ? (
-            <Text style={styles.emptyText}>No attendance found.</Text>
+            <ActivityIndicator size="large" color={PRIMARY} />
           ) : (
             attendanceList.map(renderItem)
           )}
         </ScrollView>
 
-        {/* Slots */}
+        {/* ===== FOOTER ACTIONS ===== */}
+        <View style={styles.footer}>
+          <Button mode="outlined" onPress={onRefresh}>
+            Refresh
+          </Button>
+
+          <Button
+            mode="contained"
+            onPress={saveAttendance}
+            style={{ backgroundColor: PRIMARY }}
+          >
+            Save Attendance
+          </Button>
+        </View>
+
         <View style={styles.slotContainer}>{renderSlots()}</View>
       </View>
     </Provider>
   );
 }
+
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fafafa" },
@@ -258,77 +289,65 @@ const styles = StyleSheet.create({
   classSelector: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    padding: 12,
     backgroundColor: "white",
     borderRadius: 12,
-    width: "70%",
     justifyContent: "space-between",
   },
 
-  classText: { fontSize: 15, fontWeight: "600", color: PRIMARY },
+  classText: { fontWeight: "600", color: PRIMARY },
 
-  body: { flex: 1, padding: 15 },
-
-  loaderBox: { marginTop: 40, alignItems: "center" },
-
-  emptyText: {
-    textAlign: "center",
-    marginTop: 40,
-    opacity: 0.6,
-    fontSize: 16,
-  },
+  body: { flex: 1, padding: 16 },
 
   card: {
     backgroundColor: "white",
-    padding: 18,
+    padding: 16,
     borderRadius: 16,
-    marginBottom: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    marginBottom: 12,
     elevation: 1,
   },
 
   leftCol: { flex: 1 },
-  name: { fontSize: 17, fontWeight: "700", color: "#333" },
-  subText: { fontSize: 13, opacity: 0.6, marginTop: 4 },
 
-  rightCol: { alignItems: "flex-end" },
+  name: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
 
-  statusBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+  radioRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
-  badgeText: { color: "white", fontSize: 13, fontWeight: "700" },
-
-  actionRow: { flexDirection: "row", marginTop: 10 },
-
-  actionBtn: {
-    padding: 10,
-    borderRadius: 12,
-    marginLeft: 8,
+  radioText: {
+    marginRight: 12,
+    fontWeight: "500",
   },
 
-  greenBtn: { backgroundColor: "#eafaf1" },
-  redBtn: { backgroundColor: "#fdecea" },
+  dateText: {
+    position: "absolute",
+    right: 16,
+    top: 16,
+    fontSize: 12,
+    opacity: 0.6,
+  },
+
+  footer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: "white",
+  },
 
   slotContainer: {
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    backgroundColor: "white",
-    paddingBottom: 8,
-    paddingTop: 4,
+    padding: 8,
     borderTopWidth: 1,
     borderColor: "#eee",
+    backgroundColor: "white",
   },
 
   slotButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 12,
+    marginRight: 8,
   },
 
   slotActive: { backgroundColor: PRIMARY },
@@ -336,10 +355,4 @@ const styles = StyleSheet.create({
 
   slotTextActive: { color: "white", fontWeight: "700" },
   slotTextInactive: { color: PRIMARY, fontWeight: "600" },
-  slotBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    gap: 8, // 👈 nicely spaces buttons when scrolling
-  },
 });
