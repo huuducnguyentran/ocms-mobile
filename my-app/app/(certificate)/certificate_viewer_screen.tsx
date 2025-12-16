@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Platform } from "react-native";
 import { WebView } from "react-native-webview";
 import { useLocalSearchParams } from "expo-router";
 import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
+import * as IntentLauncher from "expo-intent-launcher"; // ✅ Android open file
+import * as Sharing from "expo-sharing"; // ✅ iOS fallback
+import { Buffer } from "buffer";
 import { getCertificateHtml } from "@/service/certificateService";
 
 export default function CertificateViewerScreen() {
@@ -17,39 +19,97 @@ export default function CertificateViewerScreen() {
     if (certificateId) loadCertificate(String(certificateId));
   }, []);
 
+  const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+    return Buffer.from(buffer).toString("base64");
+  };
+
+  // ----------------------------------------------
+  // ✅ NEW: Auto-open PDF
+  // ----------------------------------------------
+  const openPdfFile = async (uri: string) => {
+    if (Platform.OS === "android") {
+      try {
+        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
+          data: uri,
+          flags: 1,
+          type: "application/pdf",
+        });
+      } catch (e) {
+        console.log("Android open PDF error:", e);
+      }
+      return;
+    }
+
+    // iOS – must use sharing UI (auto-open is blocked)
+    if (Platform.OS === "ios") {
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri);
+      }
+      return;
+    }
+  };
+
   const loadCertificate = async (id: string) => {
     try {
       const res = await getCertificateHtml(id);
 
-      if (!res.success) {
+      if (!res.success || !res.data) {
         alert("Failed to load certificate");
         return;
       }
 
-      const fileName = res.isPdf ? "certificate.pdf" : "certificate.html";
-      const cacheDir = FileSystem["cacheDirectory"] as string;
-      const fileUri = cacheDir + fileName;
+      const isPdfFile = res.isPdf;
+      const buffer: ArrayBuffer = res.data;
 
-      // Convert ArrayBuffer -> base64 safely in React Native
-      const base64 = await FileSystem.encodeBase64Async(res.data);
+      // ---------------------------
+      // 🔹 WEB
+      // ---------------------------
+      if (Platform.OS === "web") {
+        const blob = new Blob([buffer], {
+          type: isPdfFile ? "application/pdf" : "text/html",
+        });
 
-      const EncodingType: any = FileSystem["EncodingType"];
+        const url = URL.createObjectURL(blob);
+
+        if (isPdfFile) {
+          window.open(url); // Auto-download/open
+          setPdfUri(url);
+        } else {
+          const htmlText = await blob.text();
+          setHtmlContent(htmlText);
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // ---------------------------
+      // 🔹 MOBILE (Android/iOS)
+      // ---------------------------
+      const base64 = arrayBufferToBase64(buffer);
+      const fileName = isPdfFile
+        ? `certificate_${id}.pdf`
+        : `certificate_${id}.html`;
+      const fileUri = FileSystem.cacheDirectory + fileName;
 
       await FileSystem.writeAsStringAsync(fileUri, base64, {
-        encoding: EncodingType.Base64,
+        encoding: FileSystem.EncodingType.Base64,
       });
 
-      if (res.isPdf) {
+      if (isPdfFile) {
         setPdfUri(fileUri);
+
+        // ⭐ AUTO-OPEN THE PDF
+        openPdfFile(fileUri);
       } else {
-        // Convert base64 → UTF8 string
-        const htmlString = atob(base64);
-        setHtmlContent(htmlString);
+        const htmlDecoded = Buffer.from(base64, "base64").toString("utf8");
+        setHtmlContent(htmlDecoded);
       }
 
       setLoading(false);
     } catch (err) {
       console.log("Error loading certificate", err);
+      alert("Error loading certificate");
     }
   };
 
@@ -57,6 +117,7 @@ export default function CertificateViewerScreen() {
     return <ActivityIndicator size="large" style={{ marginTop: 30 }} />;
   }
 
+  // PDF will auto-download & auto-open, but we keep WebView fallback
   return (
     <View style={{ flex: 1 }}>
       {isPdf === "true" ? (

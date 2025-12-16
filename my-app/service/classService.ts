@@ -2,6 +2,17 @@
 import { CLASS_URLS } from "@/api/apiUrl";
 import axiosInstance from "@/utils/axiosInstance";
 
+export interface TraineeGrade {
+  traineeAssignationGradeId: string;
+  gradeKind:
+    | "ProgressTest"
+    | "PracticeExamScore"
+    | "FinalExamScore"
+    | "TotalScore";
+  grade: number;
+  gradeStatus: "Pass" | "Fail";
+}
+
 export interface MyClass {
   classId: number;
   subjectId: string;
@@ -16,7 +27,7 @@ export interface TraineeAssignation {
   traineeAssignationId: string;
   traineeId: string;
   traineeName: string;
-  grades: any[];
+  grades: TraineeGrade[];
 }
 
 export interface MyClassDetail {
@@ -35,6 +46,11 @@ export interface MyClassDetail {
   minPracticeExamScore: number;
   minFinalExamScore: number;
   minTotalScore: number;
+
+  /* ✅ ADD THESE */
+  weightProgressTest: number;
+  weightPracticalExam: number;
+  weightFinalExam: number;
 }
 
 export interface ApiResponse<T> {

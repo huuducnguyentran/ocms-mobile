@@ -219,6 +219,28 @@ export const getEnrollmentsByPlan = async (
   }
 };
 
+/** Get enrollments by enrollment status */
+export const getEnrollmentsByStatus = async (
+  status: number
+): Promise<ApiResponse<any[]>> => {
+  try {
+    const res = await axiosInstance.get(
+      `${PLAN_ENROLLMENT_URLS.GET_ENROLLMENT_BY_ENROLLMENT_STATUS}/${status}`
+    );
+
+    return res.data;
+  } catch (error: any) {
+    console.error("Error fetching enrollments by status:", error);
+    return {
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Failed to fetch enrollments by status.",
+      data: [],
+    };
+  }
+};
+
 /** Approve plan */
 export const approvePlan = async (
   planId: string

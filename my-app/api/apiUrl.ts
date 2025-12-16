@@ -51,7 +51,9 @@ export const PLAN_ENROLLMENT_URLS = {
   GET_BY_TRAINEE: "/TraineePlanEnrollment/trainee",
   GET_BY_PLAN: "/TraineePlanEnrollment/plan",
   GET_SUITABLE_TRAINEES: "/TraineePlanEnrollment/get-suitable-trainee",
-  GET_ENROLLMENT_BY_STATUS: "/TraineePlanEnrollment/request-status",
+  GET_ENROLLMENT_BY_REQUEST_STATUS: "/TraineePlanEnrollment/request-status",
+  GET_ENROLLMENT_BY_ENROLLMENT_STATUS:
+    "/TraineePlanEnrollment/enrollment-status",
   APPROVE_BATCH: "/TraineePlanEnrollment/approve/batch",
   REJECT_BATCH: "/TraineePlanEnrollment/reject/batch",
 };
@@ -198,6 +200,7 @@ export const TRAINEE_ASSIGNATION_URLS = {
   GET_BY_CLASS: "/Class/{classId}/trainee-assignations",
   PUBLIC_TRAINEE_ASSIGNATION:
     "/TraineeAssignation/public/user/{userId}/total-scores",
+  GET_GRADES_BY_CLASS_AND_TRAINEE: "/TraineeAssignation/class",
 };
 
 export const NOTIFICATION_URLS = {
