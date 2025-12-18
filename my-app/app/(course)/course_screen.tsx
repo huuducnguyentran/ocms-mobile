@@ -1,80 +1,74 @@
+// app/course.tsx
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  TouchableOpacity,
-  TextStyle,
-} from "react-native";
+import { View, FlatList, RefreshControl, StyleSheet } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
   Button,
   Card,
   Checkbox,
+  Menu,
   Text,
   TextInput,
-  Menu,
 } from "react-native-paper";
-import { router } from "expo-router";
-import courseService from "@/service/courseService";
+import courseService, { Course } from "@/service/courseService";
 
-interface Course {
-  courseId: string;
-  courseName: string;
-  description: string;
-  status: string;
-}
 const PRIMARY = "#3620AC";
+
+const STATUS_OPTIONS = ["All", "Pending", "Approved", "Rejected"];
+const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 export default function CoursePage() {
   const [loading, setLoading] = useState(true);
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [menuVisible, setMenuVisible] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
 
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [selected, setSelected] = useState<string[]>([]);
+
+  const [pageSizeMenuVisible, setPageSizeMenuVisible] = useState(false);
 
   useEffect(() => {
     loadCourses();
-  }, []);
+  }, [page, pageSize]);
 
   useEffect(() => {
-    filterCourses();
-  }, [statusFilter, search, courses]);
+    applyFilter();
+  }, [search, statusFilter, courses]);
 
+  /* ================= LOAD ================= */
   const loadCourses = async () => {
     try {
       setLoading(true);
-      const response = await courseService.getAllCourses();
+      const skip = (page - 1) * pageSize;
+      const res = await courseService.getAllCourses(skip, pageSize);
 
-      if (response.success && response.data) {
-        setCourses(response.data);
+      if (res.success) {
+        setCourses(res.data.data);
+        setTotalPages(res.data.totalPages);
       }
-    } catch (err) {
-      console.log("Error loading courses:", err);
     } finally {
       setLoading(false);
       setSelected([]);
     }
   };
 
-  const filterCourses = () => {
+  /* ================= FILTER ================= */
+  const applyFilter = () => {
     let data = courses;
 
-    // Filter by status
-    if (statusFilter) {
+    if (statusFilter !== "All") {
       data = data.filter((c) => c.status === statusFilter);
     }
 
-    // Search filter
     if (search) {
       data = data.filter((c) =>
-        `${c.courseId} ${c.courseName} ${c.description}`
+        `${c.courseName} ${c.courseId} ${c.description}`
           .toLowerCase()
           .includes(search.toLowerCase())
       );
@@ -83,242 +77,292 @@ export default function CoursePage() {
     setFilteredCourses(data);
   };
 
+  /* ================= SELECT ================= */
   const toggleSelect = (id: string) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  const handleApprove = async (id: string) => {
-    try {
-      await courseService.approveCourse(id);
-      loadCourses();
-    } catch (err) {
-      console.log("Approve error:", err);
+  /* ================= STATUS TAG ================= */
+  const getStatusTagStyle = (status: string) => {
+    switch (status) {
+      case "Approved":
+        return styles.approvedTag;
+      case "Rejected":
+        return styles.rejectedTag;
+      default:
+        return styles.pendingTag;
     }
   };
 
-  const handleReject = async (id: string) => {
-    try {
-      await courseService.rejectCourse(id);
-      loadCourses();
-    } catch (err) {
-      console.log("Reject error:", err);
-    }
-  };
+  /* ================= RENDER ================= */
+  const renderCourse = ({ item }: { item: Course }) => {
+    const isPending = item.status === "Pending";
 
-  const handleApproveBatch = async () => {
-    try {
-      await courseService.approveCourseBatch(selected);
-      loadCourses();
-    } catch (e) {
-      console.log("Batch approve error:", e);
-    }
-  };
-
-  const handleRejectBatch = async () => {
-    try {
-      await courseService.rejectCourseBatch(selected);
-      loadCourses();
-    } catch (e) {
-      console.log("Batch reject error:", e);
-    }
-  };
-
-  // Status style FIX (text supporting backgroundColor)
-  const getStatusStyle = (status: string): TextStyle => ({
-    backgroundColor:
-      status === "Approved"
-        ? "#2ecc71"
-        : status === "Rejected"
-        ? "#e74c3c"
-        : "#f1c40f",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    color: "white",
-    fontWeight: "700" as TextStyle["fontWeight"],
-    overflow: "hidden",
-  });
-
-  const renderCourse = ({ item }: { item: Course }) => (
-    <Card style={styles.card}>
-      <TouchableOpacity
-      // onPress={() =>
-      //   router.push({
-      //     pathname: "/course_detail",
-      //     params: { id: item.courseId },
-      //   })
-      // }
-      >
+    return (
+      <Card style={styles.card}>
         <Card.Title
           title={item.courseName}
           subtitle={`ID: ${item.courseId}`}
-          right={() =>
-            statusFilter === "Pending" ? (
-              <Checkbox
-                status={
-                  selected.includes(item.courseId) ? "checked" : "unchecked"
-                }
-                onPress={() => toggleSelect(item.courseId)}
-              />
-            ) : null
-          }
+          titleStyle={styles.cardTitle}
+          subtitleStyle={styles.cardSubtitle}
+          right={() => (
+            <Checkbox
+              status={
+                selected.includes(item.courseId) ? "checked" : "unchecked"
+              }
+              disabled={!isPending}
+              onPress={() => toggleSelect(item.courseId)}
+            />
+          )}
         />
 
         <Card.Content>
-          <Text numberOfLines={2} style={styles.description}>
+          <Text style={styles.description} numberOfLines={2}>
             {item.description}
           </Text>
 
-          <View style={styles.row}>
-            <Text style={getStatusStyle(item.status)}>{item.status}</Text>
-          </View>
-
-          {statusFilter === "Pending" && (
-            <View style={styles.actionRow}>
-              <Button
-                mode="contained"
-                style={styles.approveBtn}
-                onPress={() => handleApprove(item.courseId)}
-              >
-                Approve
-              </Button>
-
-              <Button
-                mode="outlined"
-                style={styles.rejectBtn}
-                onPress={() => handleReject(item.courseId)}
-              >
-                Reject
-              </Button>
+          <View style={styles.footerRow}>
+            <View style={[styles.statusTag, getStatusTagStyle(item.status)]}>
+              <Text style={styles.statusText}>{item.status}</Text>
             </View>
-          )}
+          </View>
         </Card.Content>
-      </TouchableOpacity>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   return (
     <>
-      <Appbar.Header>
-        <Appbar.Content title="Courses" />
-
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <Appbar.Action
-              icon="filter-variant"
-              onPress={() => setMenuVisible(true)}
-            />
-          }
-        >
-          <Menu.Item onPress={() => setStatusFilter("")} title="All Status" />
-          <Menu.Item
-            onPress={() => setStatusFilter("Pending")}
-            title="Pending"
-          />
-          <Menu.Item
-            onPress={() => setStatusFilter("Approved")}
-            title="Approved"
-          />
-          <Menu.Item
-            onPress={() => setStatusFilter("Rejected")}
-            title="Rejected"
-          />
-        </Menu>
+      {/* ================= HEADER ================= */}
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.Content title="Courses" titleStyle={styles.appbarTitle} />
       </Appbar.Header>
 
       <View style={styles.container}>
+        {/* ================= SEARCH ================= */}
         <TextInput
           mode="outlined"
           placeholder="Search courses..."
           value={search}
           onChangeText={setSearch}
           style={styles.search}
+          outlineColor={PRIMARY}
+          activeOutlineColor={PRIMARY}
         />
 
-        {statusFilter === "Pending" && selected.length > 0 && (
-          <View style={styles.batchActions}>
-            <Button mode="contained" onPress={handleApproveBatch}>
-              Approve Selected ({selected.length})
+        {/* ================= STATUS FILTER ================= */}
+        <View style={styles.filterRow}>
+          {STATUS_OPTIONS.map((status) => (
+            <Button
+              key={status}
+              mode={statusFilter === status ? "contained" : "outlined"}
+              onPress={() => {
+                setStatusFilter(status);
+                setPage(1);
+              }}
+              style={styles.filterBtn}
+              buttonColor={statusFilter === status ? PRIMARY : undefined}
+              textColor={statusFilter === status ? "white" : PRIMARY}
+            >
+              {status}
             </Button>
+          ))}
+        </View>
 
-            <Button mode="outlined" onPress={handleRejectBatch}>
-              Reject Selected ({selected.length})
-            </Button>
-          </View>
-        )}
+        {/* ================= PAGE SIZE DROPDOWN ================= */}
+        <View style={styles.pageSizeRow}>
+          <Text style={styles.pageSizeLabel}>Rows per page</Text>
 
-        {loading ? (
-          <ActivityIndicator style={{ marginTop: 20 }} />
-        ) : (
-          <FlatList
-            data={filteredCourses}
-            keyExtractor={(item) => item.courseId}
-            renderItem={renderCourse}
-            refreshControl={
-              <RefreshControl refreshing={loading} onRefresh={loadCourses} />
+          <Menu
+            visible={pageSizeMenuVisible}
+            onDismiss={() => setPageSizeMenuVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                onPress={() => setPageSizeMenuVisible(true)}
+                icon="chevron-down"
+                textColor={PRIMARY}
+                style={styles.pageSizeDropdown}
+              >
+                {pageSize}
+              </Button>
             }
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <Menu.Item
+                key={size}
+                title={`${size}`}
+                onPress={() => {
+                  setPageSize(size);
+                  setPage(1);
+                  setPageSizeMenuVisible(false);
+                }}
+              />
+            ))}
+          </Menu>
+        </View>
+
+        {/* ================= LIST ================= */}
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color={PRIMARY}
+            style={{ marginTop: 40 }}
           />
+        ) : (
+          <>
+            <FlatList
+              data={filteredCourses}
+              keyExtractor={(item) => item.courseId}
+              renderItem={renderCourse}
+              refreshControl={
+                <RefreshControl
+                  refreshing={loading}
+                  onRefresh={loadCourses}
+                  colors={[PRIMARY]}
+                />
+              }
+            />
+
+            {/* ================= PAGINATION ================= */}
+            <View style={styles.pagination}>
+              <Button
+                mode="outlined"
+                disabled={page === 1}
+                onPress={() => setPage((p) => p - 1)}
+                textColor={PRIMARY}
+              >
+                Previous
+              </Button>
+
+              <Text style={styles.pageText}>
+                Page {page} / {totalPages}
+              </Text>
+
+              <Button
+                mode="outlined"
+                disabled={page === totalPages}
+                onPress={() => setPage((p) => p + 1)}
+                textColor={PRIMARY}
+              >
+                Next
+              </Button>
+            </View>
+          </>
         )}
       </View>
     </>
   );
 }
 
+/* ================= STYLES ================= */
 const styles = StyleSheet.create({
+  appbar: {
+    backgroundColor: "white",
+    elevation: 2,
+  },
+  appbarTitle: {
+    color: PRIMARY,
+    fontWeight: "800",
+  },
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#F7F7FF", // Light background to match the purple palette
+    backgroundColor: "#F4F3FF",
+  },
+  search: {
+    marginBottom: 12,
+    backgroundColor: "white",
+  },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  filterBtn: {
+    borderRadius: 20,
   },
 
-  search: {
-    marginBottom: 10,
+  /* ===== PAGE SIZE ===== */
+  pageSizeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  pageSizeLabel: {
+    fontWeight: "700",
+    color: "#2D2A6E",
+  },
+  pageSizeBtn: {
+    borderRadius: 16,
   },
 
   card: {
     marginBottom: 12,
-    borderRadius: 14,
-    elevation: 3,
+    borderRadius: 16,
     backgroundColor: "white",
     borderLeftWidth: 5,
-    borderLeftColor: PRIMARY, // Purple accent
+    borderLeftColor: PRIMARY,
+  },
+  cardTitle: {
+    fontWeight: "700",
+    color: "#1E1B4B", // darker purple/ink
+  },
+
+  cardSubtitle: {
+    color: "#4B5563", // slate-600
   },
 
   description: {
-    marginTop: 4,
-    opacity: 0.7,
+    color: "#374151", // slate-700 (much darker than opacity)
+    marginBottom: 8,
+    lineHeight: 20,
   },
-
-  row: {
-    marginTop: 10,
+  footerRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
 
-  actionRow: {
+  /* ===== STATUS TAG ===== */
+  statusTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "white",
+  },
+  pendingTag: {
+    backgroundColor: "#F1C40F",
+  },
+  approvedTag: {
+    backgroundColor: "#2ECC71",
+  },
+  rejectedTag: {
+    backgroundColor: "#E74C3C",
+  },
+
+  /* ===== PAGINATION ===== */
+  pagination: {
     flexDirection: "row",
-    marginTop: 12,
     justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  pageText: {
+    fontWeight: "800",
+    color: "#2D2A6E",
   },
 
-  approveBtn: {
-    flex: 1,
-    marginRight: 8,
-    backgroundColor: PRIMARY, // Purple approve button
-  },
-
-  rejectBtn: {
-    flex: 1,
-    marginLeft: 8,
+  pageSizeDropdown: {
+    borderRadius: 12,
     borderColor: PRIMARY,
-  },
-
-  batchActions: {
-    marginBottom: 10,
-    gap: 8,
   },
 });

@@ -56,13 +56,13 @@ const navItems: NavItem[] = [
         path: "/course_screen",
         roles: ["Administrator", "Instructor", "Director", "Education Officer"],
       },
-      {
-        key: "3-2",
-        label: "Course Specialty",
-        icon: "cluster",
-        path: "/course-subject-specialty",
-        roles: ["Administrator", "Instructor", "Director", "Education Officer"],
-      },
+      // {
+      //   key: "3-2",
+      //   label: "Course Specialty",
+      //   icon: "cluster",
+      //   path: "/course-subject-specialty",
+      //   roles: ["Administrator", "Instructor", "Director", "Education Officer"],
+      // },
     ],
   },
   {
@@ -121,7 +121,7 @@ const navItems: NavItem[] = [
     key: "7",
     label: "Grade",
     icon: "bar-chart",
-    roles: ["Instructor", "Trainee"],
+    roles: ["Instructor"],
     children: [
       {
         key: "7-1",
@@ -145,7 +145,7 @@ const navItems: NavItem[] = [
   },
   {
     key: "8",
-    label: "Curriculum",
+    label: "Academic Transcrift",
     icon: "book",
     path: "/curriculum_screen",
     roles: ["Trainee"],
@@ -154,19 +154,19 @@ const navItems: NavItem[] = [
   // ──────────────────────────────
   // 📨 Requests
   // ──────────────────────────────
-  {
-    key: "9",
-    label: "Request",
-    icon: "form",
-    path: "/request",
-    roles: [
-      "Administrator",
-      "Instructor",
-      "Trainee",
-      "Education Officer",
-      "Director",
-    ],
-  },
+  // {
+  //   key: "9",
+  //   label: "Request",
+  //   icon: "form",
+  //   path: "/request",
+  //   roles: [
+  //     "Administrator",
+  //     "Instructor",
+  //     "Trainee",
+  //     "Education Officer",
+  //     "Director",
+  //   ],
+  // },
 
   // ──────────────────────────────
   // 🎖️ Certification & Decisions
@@ -292,13 +292,13 @@ const navItems: NavItem[] = [
   // ──────────────────────────────
   // ⚙️ System & Tools
   // ──────────────────────────────
-  {
-    key: "16",
-    label: "Reports",
-    icon: "pie-chart",
-    path: "/export-certificate",
-    roles: ["Administrator", "Director", "AOC Manager"],
-  },
+  // {
+  //   key: "16",
+  //   label: "Reports",
+  //   icon: "pie-chart",
+  //   path: "/export-certificate",
+  //   roles: ["Administrator", "Director", "AOC Manager"],
+  // },
   {
     key: "17",
     label: "Plan",

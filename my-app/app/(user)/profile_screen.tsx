@@ -8,21 +8,24 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-
+import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { TextInput, Button, IconButton } from "react-native-paper";
 import { profileService } from "@/service/profileService";
 
+const PRIMARY = "#5A39F0";
+const TEXT_PRIMARY = "#111827"; // Almost black
+const TEXT_SECONDARY = "#374151"; // Dark gray
+const BORDER_DARK = "#D1D5DB";
+
 export default function ProfileScreen() {
+  const router = useRouter();
+
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
   const [editMode, setEditMode] = useState(false);
-
-  // Tabs: "info" or "password"
   const [tab, setTab] = useState<"info" | "password">("info");
 
-  // Editable fields
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -31,22 +34,17 @@ export default function ProfileScreen() {
     citizenId: "",
   });
 
-  // Change password fields
   const [pass, setPass] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
 
-  // --------------------------
-  // Load User Profile
-  // --------------------------
+  /* ================= LOAD PROFILE ================= */
   const fetchProfile = async () => {
     try {
-      setLoading(true);
       const res = await profileService.getProfile();
       setProfile(res.data);
-
       setForm({
         fullName: res.data.fullName || "",
         email: res.data.email || "",
@@ -54,7 +52,7 @@ export default function ProfileScreen() {
         sex: res.data.sex || "",
         citizenId: res.data.citizenId || "",
       });
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to load profile");
     } finally {
       setLoading(false);
@@ -65,9 +63,7 @@ export default function ProfileScreen() {
     fetchProfile();
   }, []);
 
-  // --------------------------
-  // Upload Avatar
-  // --------------------------
+  /* ================= AVATAR ================= */
   const handleUploadAvatar = async () => {
     const picker = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
@@ -77,85 +73,50 @@ export default function ProfileScreen() {
 
     if (picker.canceled) return;
 
-    const localUri = picker.assets[0].uri;
-    const fileName = localUri.split("/").pop()!;
-    const fileType = fileName.split(".").pop();
+    const asset = picker.assets[0];
+    const fileName = asset.uri.split("/").pop()!;
+    const type = fileName.split(".").pop();
 
     const formData: any = new FormData();
     formData.append("file", {
-      uri: localUri,
+      uri: asset.uri,
       name: fileName,
-      type: `image/${fileType}`,
-    } as any);
+      type: `image/${type}`,
+    });
 
     try {
-      const res = await profileService.uploadAvatar(formData);
-      Alert.alert("Success", "Avatar updated!");
-
+      await profileService.uploadAvatar(formData);
       fetchProfile();
-    } catch (error) {
-      Alert.alert("Error", "Failed to upload avatar");
+    } catch {
+      Alert.alert("Error", "Avatar upload failed");
     }
   };
 
-  // --------------------------
-  // Update Profile
-  // --------------------------
-  const handleUpdateProfile = () => {
-    Alert.alert(
-      "Confirm Update",
-      "Are you sure you want to update your profile?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Update",
-          onPress: async () => {
-            try {
-              await profileService.updateProfile(form);
-              Alert.alert("Success", "Profile updated");
-              setEditMode(false);
-              fetchProfile();
-            } catch (error) {
-              Alert.alert("Error", "Update failed");
-            }
-          },
-        },
-      ]
-    );
+  /* ================= UPDATE PROFILE ================= */
+  const handleUpdateProfile = async () => {
+    try {
+      await profileService.updateProfile(form);
+      Alert.alert("Success", "Profile updated");
+      setEditMode(false);
+      fetchProfile();
+    } catch {
+      Alert.alert("Error", "Update failed");
+    }
   };
 
-  // --------------------------
-  // Change Password
-  // --------------------------
-  const handleChangePassword = () => {
-    Alert.alert(
-      "Confirm Change",
-      "Are you sure you want to change your password?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Change",
-          onPress: async () => {
-            try {
-              await profileService.changePassword(
-                pass.currentPassword,
-                pass.newPassword,
-                pass.confirmPassword
-              );
-
-              Alert.alert("Success", "Password changed");
-              setPass({
-                currentPassword: "",
-                newPassword: "",
-                confirmPassword: "",
-              });
-            } catch (error: any) {
-              Alert.alert("Error", error.response?.data || "Change failed");
-            }
-          },
-        },
-      ]
-    );
+  /* ================= CHANGE PASSWORD ================= */
+  const handleChangePassword = async () => {
+    try {
+      await profileService.changePassword(
+        pass.currentPassword,
+        pass.newPassword,
+        pass.confirmPassword
+      );
+      Alert.alert("Success", "Password changed");
+      setPass({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (e: any) {
+      Alert.alert("Error", e.response?.data || "Change failed");
+    }
   };
 
   if (loading) {
@@ -170,8 +131,19 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Avatar */}
-      <View style={styles.avatarContainer}>
+      {/* ================= HEADER ================= */}
+      <View style={styles.header}>
+        <IconButton
+          icon="arrow-left"
+          iconColor="white"
+          size={24}
+          onPress={() => router.back()}
+        />
+        <Text style={styles.headerTitle}>My Profile</Text>
+      </View>
+
+      {/* ================= AVATAR CARD ================= */}
+      <View style={styles.avatarCard}>
         <TouchableOpacity onPress={handleUploadAvatar}>
           <Image
             source={{
@@ -183,70 +155,122 @@ export default function ProfileScreen() {
           />
         </TouchableOpacity>
         <Text style={styles.name}>{profile.fullName}</Text>
+        <Text style={styles.role}>{profile.role}</Text>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabRow}>
+      {/* ================= TABS ================= */}
+      <View style={styles.tabs}>
         <TouchableOpacity
-          style={[styles.tabItem, tab === "info" && styles.tabActive]}
+          style={[styles.tab, tab === "info" && styles.tabActive]}
           onPress={() => setTab("info")}
         >
-          <Text style={styles.tabText}>Profile Info</Text>
+          <Text style={tab === "info" ? styles.tabTextActive : styles.tabText}>
+            Profile Info
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabItem, tab === "password" && styles.tabActive]}
+          style={[styles.tab, tab === "password" && styles.tabActive]}
           onPress={() => setTab("password")}
         >
-          <Text style={styles.tabText}>Change Password</Text>
+          <Text
+            style={tab === "password" ? styles.tabTextActive : styles.tabText}
+          >
+            Password
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* ---------------- PROFILE INFO TAB ---------------- */}
+      {/* ================= PROFILE INFO ================= */}
       {tab === "info" && (
-        <View style={{ padding: 20 }}>
+        <View style={styles.section}>
           {!editMode && (
             <IconButton
               icon="pencil"
-              size={24}
+              size={22}
               style={{ alignSelf: "flex-end" }}
               onPress={() => setEditMode(true)}
             />
           )}
 
-          {/* Fields */}
-          {Object.keys(form).map((key) => (
-            <TextInput
-              key={key}
-              label={key}
-              value={(form as any)[key]}
-              mode="outlined"
-              editable={editMode}
-              style={styles.input}
-              onChangeText={(text) => setForm({ ...form, [key]: text })}
-            />
-          ))}
+          <TextInput
+            label="Full Name"
+            value={form.fullName}
+            mode="outlined"
+            editable={editMode}
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
+            onChangeText={(t) => setForm({ ...form, fullName: t })}
+            style={styles.input}
+          />
+
+          <TextInput
+            label="Email"
+            value={form.email}
+            mode="outlined"
+            disabled
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
+            style={styles.input}
+          />
+
+          <TextInput
+            label="Phone Number"
+            value={form.phoneNumber}
+            mode="outlined"
+            editable={editMode}
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
+            onChangeText={(t) => setForm({ ...form, phoneNumber: t })}
+            style={styles.input}
+          />
+
+          <TextInput
+            label="Sex"
+            value={form.sex}
+            mode="outlined"
+            editable={editMode}
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
+            onChangeText={(t) => setForm({ ...form, sex: t })}
+            style={styles.input}
+          />
+
+          <TextInput
+            label="Citizen ID"
+            value={form.citizenId}
+            mode="outlined"
+            editable={editMode}
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
+            onChangeText={(t) => setForm({ ...form, citizenId: t })}
+            style={styles.input}
+          />
 
           {editMode && (
-            <Button
-              mode="contained"
-              style={{ marginTop: 10 }}
-              onPress={handleUpdateProfile}
-            >
+            <Button mode="contained" onPress={handleUpdateProfile}>
               Save Changes
             </Button>
           )}
         </View>
       )}
 
-      {/* ---------------- CHANGE PASSWORD TAB ---------------- */}
+      {/* ================= PASSWORD ================= */}
       {tab === "password" && (
-        <View style={{ padding: 20 }}>
+        <View style={styles.section}>
           <TextInput
             label="Current Password"
             secureTextEntry
             mode="outlined"
             value={pass.currentPassword}
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
             onChangeText={(t) => setPass({ ...pass, currentPassword: t })}
             style={styles.input}
           />
@@ -255,6 +279,9 @@ export default function ProfileScreen() {
             secureTextEntry
             mode="outlined"
             value={pass.newPassword}
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
             onChangeText={(t) => setPass({ ...pass, newPassword: t })}
             style={styles.input}
           />
@@ -263,6 +290,9 @@ export default function ProfileScreen() {
             secureTextEntry
             mode="outlined"
             value={pass.confirmPassword}
+            textColor={TEXT_PRIMARY}
+            activeOutlineColor={PRIMARY}
+            outlineColor={BORDER_DARK}
             onChangeText={(t) => setPass({ ...pass, confirmPassword: t })}
             style={styles.input}
           />
@@ -276,69 +306,69 @@ export default function ProfileScreen() {
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FF",
+  container: { flex: 1, backgroundColor: "#F6F7FB" },
+
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PRIMARY,
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 10,
   },
 
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "white",
+    marginLeft: 8,
   },
 
-  avatarContainer: {
+  avatarCard: {
     alignItems: "center",
-    marginTop: 40,
-    marginBottom: 20,
+    marginTop: -30,
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: "white",
+    elevation: 4,
   },
 
   avatar: {
-    width: 130,
-    height: 130,
+    width: 120,
+    height: 120,
     borderRadius: 100,
     borderWidth: 3,
-    borderColor: "#5A39F0",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    borderColor: PRIMARY,
   },
 
-  name: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginTop: 10,
-    color: "#1C1C1E",
-  },
+  name: { fontSize: 20, fontWeight: "800", marginTop: 10 },
+  role: { fontSize: 13, color: "#64748b" },
 
-  tabRow: {
+  tabs: {
     flexDirection: "row",
+    margin: 20,
+    backgroundColor: "#E8E7FF",
+    borderRadius: 14,
+  },
+
+  tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
+  tabActive: { backgroundColor: PRIMARY, borderRadius: 14 },
+  tabText: { color: "#333", fontWeight: "600" },
+  tabTextActive: { color: "white", fontWeight: "700" },
+
+  section: {
     marginHorizontal: 20,
-    marginVertical: 10,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: "#E6E6EF",
+    padding: 20,
+    backgroundColor: "white",
+    borderRadius: 16,
+    elevation: 2,
   },
 
-  tabItem: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-
-  tabActive: {
-    backgroundColor: "#5A39F0",
-  },
-
-  tabText: {
-    color: "#1C1C1E",
-    fontWeight: "600",
-  },
-
-  input: {
-    marginBottom: 16,
-    backgroundColor: "#fff",
-  },
+  input: { marginBottom: 14, backgroundColor: "white" },
 });

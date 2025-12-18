@@ -55,8 +55,9 @@
       "baseUrl": "https://certificatemanagementbe-production.up.railway.app",
       "router": {},
       "eas": {
-        "projectId": "a410335e-cb11-41bf-916a-52ac9235947a"
+        "projectId": "9323058c-11c6-4da2-a8e5-326abf66d9ec"
       }
-    }
+    },
+    "owner": "huuduc2003"
   }
 }

@@ -1,31 +1,63 @@
 // src/service/courseService.ts
-
 import { COURSE_URLS } from "@/api/apiUrl";
 import axiosInstance from "@/utils/axiosInstance";
+
+/* ================= TYPES ================= */
+export interface Course {
+  courseId: string;
+  courseName: string;
+  description: string;
+  status: string;
+  isCertificated: boolean;
+  createdAt: string;
+}
+
+export interface PaginationData<T> {
+  data: T[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
 
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
-  data: T | null;
+  data: T;
 }
 
-export const courseService = {
+/* ================= SERVICE ================= */
+const courseService = {
   /**
-   * Get all courses
+   * Get all courses (PAGINATED)
    */
-  getAllCourses: async (): Promise<ApiResponse<any[]>> => {
+  getAllCourses: async (
+    skip = 0,
+    take = 10
+  ): Promise<ApiResponse<PaginationData<Course>>> => {
     try {
-      const res = await axiosInstance.get(COURSE_URLS.GET_ALL);
+      const res = await axiosInstance.get(COURSE_URLS.GET_ALL, {
+        params: { skip, take },
+      });
       return res.data;
     } catch (error) {
       return {
         success: false,
         message: "Failed to fetch courses.",
-        data: [],
+        data: {
+          data: [],
+          totalCount: 0,
+          pageNumber: 1,
+          pageSize: take,
+          totalPages: 0,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
       };
     }
   },
-
   /**
    * Get course details by ID
    */

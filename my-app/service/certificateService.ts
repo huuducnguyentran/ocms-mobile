@@ -1,24 +1,47 @@
 import axiosInstance from "../utils/axiosInstance";
 import { CERTIFICATE_URLS, SIGNATURE_URLS } from "../api/apiUrl";
 
+export interface PagedResponse<T> {
+  data: T[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
-  data: T | null;
+  data: T;
 }
 
 /**
- * Get all certificates (Admin, Director)
+ * Get all certificates with pagination
  */
-export const getAllCertificates = async (): Promise<ApiResponse<any[]>> => {
+export const getAllCertificates = async (
+  skip: number,
+  take: number
+): Promise<ApiResponse<PagedResponse<any>>> => {
   try {
-    const res = await axiosInstance.get(CERTIFICATE_URLS.GET_ALL_CERTIFICATE);
+    const res = await axiosInstance.get(
+      `${CERTIFICATE_URLS.GET_ALL_CERTIFICATE}?skip=${skip}&take=${take}`
+    );
     return res.data;
   } catch (error) {
     return {
       success: false,
-      message: "Failed to fetch certificates.",
-      data: [],
+      message: "Failed to fetch certificates",
+      data: {
+        data: [],
+        totalCount: 0,
+        pageNumber: 1,
+        pageSize: take,
+        totalPages: 0,
+        hasPreviousPage: false,
+        hasNextPage: false,
+      },
     };
   }
 };

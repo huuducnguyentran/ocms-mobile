@@ -1,3 +1,14 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  TextInput,
+} from "react-native";
+import { Checkbox } from "react-native-paper";
 import {
   approvePlan,
   approvePlansBatch,
@@ -6,99 +17,109 @@ import {
   rejectPlansBatch,
   TrainingPlan,
 } from "@/service/planService";
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import { Checkbox } from "react-native-paper";
 
+/* ================= CONSTANTS ================= */
+const PRIMARY = "#3620AC";
+const PAGE_SIZE_OPTIONS = [5, 10, 20] as const;
+type StatusType = "Pending" | "Approved" | "Rejected";
+
+/* ================= SCREEN ================= */
 export default function PlanStatusScreen() {
-  const [status, setStatus] = useState<"Pending" | "Approved" | "Rejected">(
-    "Pending"
-  );
+  const [status, setStatus] = useState<StatusType>("Pending");
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const primary = "#3620AC";
+  /* search + pagination */
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] =
+    useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
 
+  /* ================= LOAD ================= */
   const loadPlans = async () => {
-    setLoading(true);
-    const res = await getPlansByStatus(status);
-    if (res?.success && Array.isArray(res.data)) {
-      setPlans(res.data);
+    try {
+      setLoading(true);
+      const res = await getPlansByStatus(status);
+      setPlans(res?.success && Array.isArray(res.data) ? res.data : []);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     loadPlans();
     setSelectedIds([]);
+    setPage(1);
   }, [status]);
 
+  /* ================= SEARCH ================= */
+  const filteredPlans = useMemo(() => {
+    if (!search.trim()) return plans;
+    const q = search.toLowerCase();
+    return plans.filter(
+      (p) =>
+        p.planName.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q)
+    );
+  }, [plans, search]);
+
+  /* ================= PAGINATION ================= */
+  const totalPages = Math.ceil(filteredPlans.length / pageSize);
+
+  const pagedPlans = filteredPlans.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
+
+  /* ================= SELECT ================= */
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
+  /* ================= ACTIONS ================= */
   const approveBatch = async () => {
     if (!selectedIds.length) return;
-    const res = await approvePlansBatch(selectedIds);
-    res?.success
-      ? Alert.alert("Success", "Plans approved!")
-      : Alert.alert("Error", "Approval failed.");
+    await approvePlansBatch(selectedIds);
     loadPlans();
   };
 
   const rejectBatch = async () => {
     if (!selectedIds.length) return;
-    const res = await rejectPlansBatch(selectedIds);
-    res?.success
-      ? Alert.alert("Success", "Plans rejected!")
-      : Alert.alert("Error", "Rejection failed.");
+    await rejectPlansBatch(selectedIds);
     loadPlans();
   };
 
   const approveSingle = async (id: string) => {
-    const res = await approvePlan(id);
-    res?.success
-      ? Alert.alert("Success", "Plan approved!")
-      : Alert.alert("Error", "Failed.");
+    await approvePlan(id);
     loadPlans();
   };
 
   const rejectSingle = async (id: string) => {
-    const res = await rejectPlan(id);
-    res?.success
-      ? Alert.alert("Success", "Plan rejected!")
-      : Alert.alert("Error", "Failed.");
+    await rejectPlan(id);
     loadPlans();
   };
 
+  /* ================= RENDER ================= */
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Plan Status</Text>
+      <Text style={styles.title}>Training Plan Status</Text>
 
-      {/* Status Selector */}
-      <View style={styles.statusRow}>
-        {["Pending", "Approved", "Rejected"].map((s) => (
+      {/* ===== STATUS TABS ===== */}
+      <View style={styles.tabsWrapper}>
+        {(["Pending", "Approved", "Rejected"] as StatusType[]).map((s) => (
           <TouchableOpacity
             key={s}
-            onPress={() => setStatus(s as any)}
+            onPress={() => setStatus(s)}
             style={[
-              styles.statusPill,
-              status === s && { backgroundColor: primary },
+              styles.tabButton,
+              status === s && { backgroundColor: PRIMARY },
             ]}
           >
             <Text
-              style={[styles.statusPillText, status === s && { color: "#fff" }]}
+              style={[styles.tabText, status === s && styles.tabTextActive]}
             >
               {s}
             </Text>
@@ -106,57 +127,72 @@ export default function PlanStatusScreen() {
         ))}
       </View>
 
-      {/* Divider */}
-      <View style={styles.divider} />
+      {/* ===== SEARCH ===== */}
+      <TextInput
+        placeholder="Search plan name or description..."
+        value={search}
+        onChangeText={(t) => {
+          setSearch(t);
+          setPage(1);
+        }}
+        style={styles.searchInput}
+        placeholderTextColor="#9CA3AF"
+      />
 
-      {/* Batch Actions */}
-      {status === "Pending" && plans.length > 0 && (
-        <View style={styles.actionRow}>
+      {/* ===== BATCH ACTIONS ===== */}
+      {status === "Pending" && selectedIds.length > 0 && (
+        <View style={styles.batchRow}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: primary }]}
+            style={[styles.batchBtn, { backgroundColor: PRIMARY }]}
             onPress={approveBatch}
           >
-            <Text style={styles.actionBtnText}>Approve Selected</Text>
+            <Text style={styles.batchText}>Approve Selected</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#D23636" }]}
+            style={[styles.batchBtn, { backgroundColor: "#DC2626" }]}
             onPress={rejectBatch}
           >
-            <Text style={styles.actionBtnText}>Reject Selected</Text>
+            <Text style={styles.batchText}>Reject Selected</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Loading */}
+      {/* ===== LIST ===== */}
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={primary}
-          style={{ marginTop: 20 }}
+          color={PRIMARY}
+          style={{ marginTop: 40 }}
         />
       ) : (
         <FlatList
-          data={plans}
+          data={pagedPlans}
           keyExtractor={(item) => item.planId}
           contentContainerStyle={{ paddingBottom: 20 }}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No plans found</Text>
+          }
           renderItem={({ item }) => (
             <View style={styles.card}>
-              {/* Checkbox */}
               {status === "Pending" && (
                 <Checkbox
                   status={
                     selectedIds.includes(item.planId) ? "checked" : "unchecked"
                   }
                   onPress={() => toggleSelect(item.planId)}
-                  color={primary}
+                  color={PRIMARY}
                 />
               )}
 
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.planName}</Text>
                 <Text style={styles.cardSubtitle}>ID: {item.planId}</Text>
-                <Text style={styles.cardDesc}>{item.description}</Text>
+
+                <Text style={styles.cardDesc} numberOfLines={2}>
+                  {item.description}
+                </Text>
+
                 <Text style={styles.cardDate}>
                   Created: {new Date(item.createdAt).toLocaleString()}
                 </Text>
@@ -164,14 +200,14 @@ export default function PlanStatusScreen() {
                 {status === "Pending" && (
                   <View style={styles.cardActions}>
                     <TouchableOpacity
-                      style={[styles.smallBtn, { backgroundColor: primary }]}
+                      style={[styles.smallBtn, { backgroundColor: PRIMARY }]}
                       onPress={() => approveSingle(item.planId)}
                     >
                       <Text style={styles.smallBtnText}>Approve</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.smallBtn, { backgroundColor: "#D23636" }]}
+                      style={[styles.smallBtn, { backgroundColor: "#DC2626" }]}
                       onPress={() => rejectSingle(item.planId)}
                     >
                       <Text style={styles.smallBtnText}>Reject</Text>
@@ -183,118 +219,172 @@ export default function PlanStatusScreen() {
           )}
         />
       )}
+
+      {/* ===== PAGINATION ===== */}
+      <View style={styles.paginationRow}>
+        <Text style={styles.paginationText}>
+          Page {page} / {totalPages || 1}
+        </Text>
+
+        <View style={styles.paginationBtns}>
+          <TouchableOpacity
+            disabled={page === 1}
+            onPress={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            <Text style={[styles.pageBtn, page === 1 && styles.disabled]}>
+              Prev
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            disabled={page === totalPages}
+            onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            <Text
+              style={[styles.pageBtn, page === totalPages && styles.disabled]}
+            >
+              Next
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
 
+/* ================= STYLES ================= */
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
     flex: 1,
-    backgroundColor: "#F9F9FF",
+    padding: 16,
+    backgroundColor: "#FFFFFF",
   },
-
   title: {
     fontSize: 26,
-    fontWeight: "700",
-    color: "#3620AC",
+    fontWeight: "800",
+    color: PRIMARY,
+    marginBottom: 12,
   },
 
-  statusRow: {
+  tabsWrapper: {
     flexDirection: "row",
-    marginTop: 16,
-    gap: 12,
+    backgroundColor: "#EFEAFE",
+    padding: 6,
+    borderRadius: 10,
+    gap: 6,
+    marginBottom: 12,
   },
-
-  statusPill: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: "#ECEBFF",
-  },
-
-  statusPillText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3620AC",
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: "#DDD",
-    marginVertical: 16,
-  },
-
-  actionRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 10,
-  },
-
-  actionBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+  tabButton: {
     flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  tabText: {
+    color: "#4B5563",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  tabTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "800",
   },
 
-  actionBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-    textAlign: "center",
+  searchInput: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+    color: "#111827",
+  },
+
+  batchRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  batchBtn: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  batchText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
   },
 
   card: {
     flexDirection: "row",
-    backgroundColor: "#fff",
+    backgroundColor: "#FAFAFF",
     padding: 14,
-    borderRadius: 12,
-    marginBottom: 14,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderRadius: 14,
+    marginBottom: 12,
+    borderLeftWidth: 5,
+    borderLeftColor: PRIMARY,
   },
-
   cardTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
-    color: "#333",
+    color: "#1F2937",
   },
-
   cardSubtitle: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
+    fontSize: 13,
+    color: "#6B7280",
   },
-
   cardDesc: {
     fontSize: 14,
-    color: "#444",
+    color: "#374151",
     marginTop: 6,
   },
-
   cardDate: {
     fontSize: 12,
-    color: "#666",
+    color: "#6B7280",
     marginTop: 4,
   },
-
   cardActions: {
     flexDirection: "row",
     gap: 10,
     marginTop: 12,
   },
-
   smallBtn: {
     paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  smallBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 12,
   },
 
-  smallBtnText: {
-    color: "#fff",
-    fontSize: 12,
+  paginationRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  paginationText: {
+    color: "#4B5563",
+    fontWeight: "600",
+  },
+  paginationBtns: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  pageBtn: {
+    color: PRIMARY,
     fontWeight: "700",
+  },
+  disabled: {
+    color: "#9CA3AF",
+  },
+
+  emptyText: {
+    textAlign: "center",
+    marginTop: 40,
+    color: "#6B7280",
   },
 });

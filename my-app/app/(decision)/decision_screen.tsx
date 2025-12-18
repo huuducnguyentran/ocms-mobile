@@ -4,358 +4,439 @@ import {
   signDecision,
   signDecisionBatch,
 } from "@/service/decisionService";
-import React, { useEffect, useState, useCallback } from "react";
+
+import React, { useEffect, useState } from "react";
+import { View, FlatList, RefreshControl, StyleSheet } from "react-native";
 import {
-  View,
-  FlatList,
-  RefreshControl,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
-import {
-  Card,
-  Text,
-  Modal,
-  Portal,
-  Button,
   ActivityIndicator,
-  Searchbar,
-  Chip,
+  Appbar,
+  Button,
+  Card,
+  Menu,
+  Text,
+  TextInput,
   Checkbox,
+  Modal,
+  Snackbar,
 } from "react-native-paper";
 import { Buffer } from "buffer";
 import { WebView } from "react-native-webview";
 
-const THEME_COLOR = "#3620AC";
+const PRIMARY = "#3620AC";
 
-const DecisionScreen: React.FC = () => {
+const STATUS_OPTIONS = ["All", "Draft", "Signed", "Revoked"];
+const PAGE_SIZE_OPTIONS = [10, 20, 30];
+
+const DecisionScreen = () => {
+  const [loading, setLoading] = useState(true);
+
   const [decisions, setDecisions] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // Modal
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [selectedDecision, setSelectedDecision] = useState<any>(null);
-  const [pdfData, setPdfData] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Search + Filter
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
-  // Batch selection
+  const [pageSizeMenuVisible, setPageSizeMenuVisible] = useState(false);
+
+  // ===== MODAL =====
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [pdfData, setPdfData] = useState<string | null>(null);
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
+
+  // ===== MESSAGE =====
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"success" | "error">(
+    "success"
+  );
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+
+  // ===== ACTION LOADING =====
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // ===== BATCH =====
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
-  const userRole = "Director"; // 🔥 Replace with your actual stored role
+  const userRole = "Director";
   const isDirector = userRole === "Director";
 
-  const sortDecisions = (data: any[]) =>
-    [...data].sort((a, b) => b.decisionCode.localeCompare(a.decisionCode));
+  /* ================= SORT ================= */
+  const sortDecisions = (data: any[]) => {
+    const priority: any = { Draft: 1, Signed: 2, Revoked: 3 };
+    return [...data].sort((a, b) => {
+      const diff =
+        (priority[a.decisionStatus] || 99) - (priority[b.decisionStatus] || 99);
+      if (diff) return diff;
+      return b.decisionCode.localeCompare(a.decisionCode);
+    });
+  };
 
-  /* ============================================================
-        Fetch Decisions
-  ============================================================ */
-  const fetchData = async () => {
+  /* ================= LOAD ================= */
+  const loadData = async () => {
     try {
       setLoading(true);
-      const res = await getAllDecisions();
+      const skip = (page - 1) * pageSize;
+
+      const res = await getAllDecisions(skip, pageSize);
 
       if (res.success) {
-        const sorted = sortDecisions(res.data || []);
+        const sorted = sortDecisions(res.data.data);
         setDecisions(sorted);
-        setFiltered(sorted);
+        setTotalPages(res.data.totalPages);
       }
-    } catch (err) {
-      console.error("Error loading decisions:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    loadData();
+  }, [page, pageSize]);
 
-  /* ============================================================
-        Refresh (Pull to Refresh)
-  ============================================================ */
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData().finally(() => setRefreshing(false));
-  }, []);
+  /* ================= FILTER ================= */
+  useEffect(() => {
+    let data = decisions;
 
-  /* ============================================================
-        Search + Filter
-  ============================================================ */
-  const applyFilters = (s = search, status = statusFilter) => {
-    let data = [...decisions];
+    if (statusFilter !== "All") {
+      data = data.filter((d) => d.decisionStatus === statusFilter);
+    }
 
-    if (s.trim()) {
-      data = data.filter(
-        (item) =>
-          item.title?.toLowerCase().includes(s.toLowerCase()) ||
-          item.decisionStatus?.toLowerCase().includes(s.toLowerCase())
+    if (search) {
+      data = data.filter((d) =>
+        `${d.decisionCode} ${d.title}`
+          .toLowerCase()
+          .includes(search.toLowerCase())
       );
     }
 
-    if (status !== "All") {
-      data = data.filter((item) => item.decisionStatus === status);
-    }
+    setFiltered(data);
+  }, [search, statusFilter, decisions]);
 
-    setFiltered(sortDecisions(data));
-  };
-
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    applyFilters(value, statusFilter);
-  };
-
-  const handleStatusFilter = (value: string) => {
-    setStatusFilter(value);
-    applyFilters(search, value);
-  };
-
-  /* ============================================================
-        View HTML or PDF
-  ============================================================ */
+  /* ================= VIEW ================= */
   const handleView = async (item: any) => {
-    try {
-      setModalLoading(true);
-      setModalVisible(true);
+    setModalVisible(true);
+    setModalLoading(true);
+    setPdfData(null);
+    setHtmlContent(null);
 
-      const res = await getDecisionHtml(item.decisionId);
+    const res = await getDecisionHtml(item.decisionId);
 
-      if (!res.success) {
-        setModalLoading(false);
-        return;
-      }
-
+    if (res.success) {
       if (res.isPdf) {
         const base64 = `data:application/pdf;base64,${Buffer.from(
           res.data,
           "binary"
         ).toString("base64")}`;
         setPdfData(base64);
-        setSelectedDecision(null);
       } else {
-        setPdfData(null);
         const html = Buffer.from(res.data, "binary").toString();
-        setSelectedDecision({
-          title: item.title,
-          content: html,
-        });
+        setHtmlContent(html);
       }
-    } catch (err) {
-      console.error("View error:", err);
+    }
+
+    setModalLoading(false);
+  };
+
+  /* ================= ACTIONS ================= */
+  const handleSign = async (id: string) => {
+    try {
+      setActionLoading(true);
+      const res = await signDecision(id);
+
+      if (res.success) {
+        setMessage("Decision signed successfully");
+        setMessageType("success");
+        loadData();
+      } else {
+        setMessage(res.message || "Failed to sign decision");
+        setMessageType("error");
+      }
+    } catch {
+      setMessage("Something went wrong");
+      setMessageType("error");
     } finally {
-      setModalLoading(false);
+      setSnackbarVisible(true);
+      setActionLoading(false);
     }
   };
 
-  /* ============================================================
-        Sign Single
-  ============================================================ */
-  const handleSign = async (item: any) => {
-    const res = await signDecision(item.decisionId);
-    if (res.success) fetchData();
-  };
-
-  /* ============================================================
-        Sign Batch
-  ============================================================ */
   const handleBatch = async () => {
     if (!selectedKeys.length) return;
 
-    await signDecisionBatch(selectedKeys);
-    setSelectedKeys([]);
-    fetchData();
+    try {
+      setActionLoading(true);
+      const res = await signDecisionBatch(selectedKeys);
+
+      if (res.success) {
+        setMessage(`Signed ${selectedKeys.length} decisions successfully`);
+        setMessageType("success");
+        setSelectedKeys([]);
+        loadData();
+      } else {
+        setMessage(res.message || "Batch sign failed");
+        setMessageType("error");
+      }
+    } catch {
+      setMessage("Something went wrong");
+      setMessageType("error");
+    } finally {
+      setSnackbarVisible(true);
+      setActionLoading(false);
+    }
   };
 
-  /* ============================================================
-        Render Decision Card
-  ============================================================ */
-  const renderItem = ({ item }: { item: any }) => {
+  /* ================= RENDER ITEM ================= */
+  const renderItem = ({ item }: any) => {
     const checked = selectedKeys.includes(item.decisionId);
 
     return (
-      <Card style={styles.card} mode="elevated">
+      <Card style={styles.card}>
         <Card.Title
           title={item.decisionCode}
           subtitle={item.title}
-          titleStyle={{ fontWeight: "bold" }}
+          titleStyle={styles.cardTitle}
+          subtitleStyle={styles.cardSubtitle}
         />
 
         <Card.Content>
-          <Chip
-            style={{ alignSelf: "flex-start", marginBottom: 6 }}
-            textStyle={{ color: "#fff" }}
-            selectedColor="#fff"
-            selected
-            theme={{
-              colors: {
-                primary: item.decisionStatus === "Draft" ? "orange" : "green",
-              },
-            }}
-          >
-            {item.decisionStatus}
-          </Chip>
+          <View style={styles.footerRow}>
+            <View
+              style={[
+                styles.statusTag,
+                item.decisionStatus === "Signed"
+                  ? styles.activeTag
+                  : item.decisionStatus === "Revoked"
+                  ? styles.revokedTag
+                  : styles.pendingTag,
+              ]}
+            >
+              <Text style={styles.statusText}>{item.decisionStatus}</Text>
+            </View>
+
+            <Button
+              mode="outlined"
+              textColor={PRIMARY}
+              onPress={() => handleView(item)}
+            >
+              View
+            </Button>
+          </View>
         </Card.Content>
 
-        <Card.Actions style={{ justifyContent: "space-between" }}>
-          {isDirector && item.decisionStatus === "Draft" && (
+        {isDirector && item.decisionStatus === "Draft" && (
+          <Card.Actions>
             <Checkbox
               status={checked ? "checked" : "unchecked"}
-              onPress={() => {
-                if (checked)
-                  setSelectedKeys(
-                    selectedKeys.filter((id) => id !== item.decisionId)
-                  );
-                else setSelectedKeys([...selectedKeys, item.decisionId]);
-              }}
+              onPress={() =>
+                checked
+                  ? setSelectedKeys(
+                      selectedKeys.filter((i) => i !== item.decisionId)
+                    )
+                  : setSelectedKeys([...selectedKeys, item.decisionId])
+              }
             />
-          )}
-
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button mode="contained" onPress={() => handleView(item)}>
-              HTML/PDF
+            <Button
+              mode="contained"
+              disabled={actionLoading}
+              loading={actionLoading}
+              onPress={() => handleSign(item.decisionId)}
+            >
+              Sign
             </Button>
-
-            {isDirector && item.decisionStatus === "Draft" && (
-              <Button
-                mode="contained"
-                buttonColor="#ff6600"
-                onPress={() => handleSign(item)}
-              >
-                Sign
-              </Button>
-            )}
-          </View>
-        </Card.Actions>
+          </Card.Actions>
+        )}
       </Card>
     );
   };
 
-  /* ============================================================
-        Modal Viewer
-  ============================================================ */
-  const renderModalContent = () => {
-    if (modalLoading) return <ActivityIndicator style={{ padding: 40 }} />;
-
-    // PDF
-    if (pdfData) {
-      return (
-        <WebView
-          source={{ uri: pdfData }}
-          style={{ height: "90%", borderRadius: 12 }}
-        />
-      );
-    }
-
-    // HTML
-    if (selectedDecision) {
-      return (
-        <WebView
-          originWhitelist={["*"]}
-          source={{ html: selectedDecision.content }}
-          style={{ height: "90%", borderRadius: 12 }}
-        />
-      );
-    }
-
-    return <Text>No content available.</Text>;
-  };
-
-  /* ============================================================
-        UI
-  ============================================================ */
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      {/* Search */}
-      <Searchbar
-        placeholder="Search decisions..."
-        value={search}
-        onChangeText={handleSearch}
-        style={styles.search}
-      />
+    <>
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.Content title="Decisions" titleStyle={styles.appbarTitle} />
+      </Appbar.Header>
 
-      {/* Status Filter */}
-      <View style={styles.filterRow}>
-        {["All", "Draft", "Signed", "Revoked"].map((s) => (
-          <Chip
-            key={s}
-            mode={statusFilter === s ? "flat" : "outlined"}
-            selected={statusFilter === s}
-            onPress={() => handleStatusFilter(s)}
-            style={{ marginRight: 6 }}
+      <View style={styles.container}>
+        {/* SEARCH */}
+        <TextInput
+          mode="outlined"
+          placeholder="Search decisions..."
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
+          outlineColor={PRIMARY}
+          activeOutlineColor={PRIMARY}
+        />
+
+        {/* STATUS FILTER */}
+        <View style={styles.filterRow}>
+          {STATUS_OPTIONS.map((s) => (
+            <Button
+              key={s}
+              mode={statusFilter === s ? "contained" : "outlined"}
+              onPress={() => {
+                setStatusFilter(s);
+                setPage(1);
+              }}
+              buttonColor={statusFilter === s ? PRIMARY : undefined}
+              textColor={statusFilter === s ? "white" : PRIMARY}
+              style={styles.filterBtn}
+            >
+              {s}
+            </Button>
+          ))}
+        </View>
+
+        {/* PAGE SIZE */}
+        <View style={styles.pageSizeRow}>
+          <Text style={styles.pageSizeLabel}>Rows per page</Text>
+          <Menu
+            visible={pageSizeMenuVisible}
+            onDismiss={() => setPageSizeMenuVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                icon="chevron-down"
+                onPress={() => setPageSizeMenuVisible(true)}
+                textColor={PRIMARY}
+              >
+                {pageSize}
+              </Button>
+            }
           >
-            {s}
-          </Chip>
-        ))}
-      </View>
-
-      {/* Batch Sign */}
-      {isDirector && selectedKeys.length > 0 && (
-        <Button mode="contained" buttonColor="#ff6600" onPress={handleBatch}>
+            {PAGE_SIZE_OPTIONS.map((s) => (
+              <Menu.Item
+                key={s}
+                title={`${s}`}
+                onPress={() => {
+                  setPageSize(s);
+                  setPage(1);
+                  setPageSizeMenuVisible(false);
+                }}
+              />
+            ))}
+          </Menu>
+        </View>
+        <Button
+          mode="contained"
+          disabled={actionLoading}
+          loading={actionLoading}
+          onPress={handleBatch}
+        >
           Sign Selected ({selectedKeys.length})
         </Button>
-      )}
 
-      {/* Table */}
-      <FlatList
-        data={filtered}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.decisionId}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      />
+        {loading ? (
+          <ActivityIndicator size="large" color={PRIMARY} />
+        ) : (
+          <>
+            <FlatList
+              data={filtered}
+              renderItem={renderItem}
+              keyExtractor={(i) => i.decisionId}
+              refreshControl={
+                <RefreshControl refreshing={loading} onRefresh={loadData} />
+              }
+            />
 
-      {/* Modal */}
-      <Portal>
-        <Modal
-          visible={modalVisible}
-          onDismiss={() => setModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Button
-            mode="outlined"
-            onPress={() => setModalVisible(false)}
-            style={{ marginBottom: 10 }}
-          >
-            Close
-          </Button>
+            {/* PAGINATION */}
+            <View style={styles.pagination}>
+              <Button
+                disabled={page === 1}
+                onPress={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
 
-          {renderModalContent()}
-        </Modal>
-      </Portal>
-    </View>
+              <Text style={styles.pageText}>
+                Page {page} / {totalPages}
+              </Text>
+
+              <Button
+                disabled={page === totalPages}
+                onPress={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </View>
+          </>
+        )}
+      </View>
+
+      {/* MODAL */}
+      <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)}>
+        {modalLoading ? (
+          <ActivityIndicator style={{ padding: 40 }} />
+        ) : pdfData ? (
+          <WebView source={{ uri: pdfData }} style={{ height: "90%" }} />
+        ) : (
+          <WebView source={{ html: htmlContent || "" }} />
+        )}
+      </Modal>
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={{
+          backgroundColor: messageType === "success" ? "#2ECC71" : "#E74C3C",
+        }}
+      >
+        {message}
+      </Snackbar>
+    </>
   );
 };
 
 export default DecisionScreen;
 
-/* ============================================================
-      STYLES
-============================================================ */
+/* ================= STYLES ================= */
 const styles = StyleSheet.create({
+  appbar: { backgroundColor: "white" },
+  appbarTitle: { color: PRIMARY, fontWeight: "800" },
+
+  container: { flex: 1, padding: 16, backgroundColor: "#F4F3FF" },
+  search: { marginBottom: 12, backgroundColor: "white" },
+
+  filterRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  filterBtn: { borderRadius: 20 },
+
+  pageSizeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  pageSizeLabel: { fontWeight: "700", color: "#2D2A6E" },
+
   card: {
     marginBottom: 12,
-    borderRadius: 12,
-  },
-  search: {
-    marginBottom: 10,
-    borderRadius: 12,
-  },
-  filterRow: {
-    flexDirection: "row",
-    marginBottom: 12,
-  },
-  modal: {
+    borderRadius: 16,
     backgroundColor: "white",
-    padding: 20,
-    margin: 16,
-    borderRadius: 12,
-    height: "90%",
+    borderLeftWidth: 5,
+    borderLeftColor: PRIMARY,
   },
+  cardTitle: { fontWeight: "700", color: "#1E1B4B" },
+  cardSubtitle: { color: "#4B5563" },
+
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  statusTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: { color: "white", fontWeight: "700", fontSize: 12 },
+
+  pendingTag: { backgroundColor: "#F1C40F" },
+  activeTag: { backgroundColor: "#2ECC71" },
+  revokedTag: { backgroundColor: "#E74C3C" },
+
+  pagination: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+  },
+  pageText: { fontWeight: "800", color: "#2D2A6E" },
 });

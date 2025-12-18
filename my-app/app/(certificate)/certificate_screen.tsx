@@ -3,17 +3,22 @@
 import React, { useEffect, useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
+  RefreshControl,
   Modal,
+  ScrollView,
   Alert,
   StyleSheet,
-  ScrollView,
 } from "react-native";
-import { useRouter } from "expo-router";
+import {
+  ActivityIndicator,
+  Appbar,
+  Button,
+  Card,
+  Menu,
+  Text,
+  TextInput,
+} from "react-native-paper";
 import { WebView } from "react-native-webview";
 import { Buffer } from "buffer";
 
@@ -25,29 +30,36 @@ import {
   updateCertificateStatus,
 } from "../../service/certificateService";
 
-export default function CertificateScreen() {
-  const router = useRouter();
-  const THEME_COLOR = "#3620AC";
+const PRIMARY = "#3620AC";
 
+const STATUS_OPTIONS = ["All", "Pending", "Active", "Expired", "Revoked"];
+const PAGE_SIZE_OPTIONS = [10, 20, 30];
+
+export default function CertificateScreen() {
+  const [loading, setLoading] = useState(true);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [searchText, setSearchText] = useState("");
 
+  const [pageSizeMenuVisible, setPageSizeMenuVisible] = useState(false);
+
+  // ===== VIEW / PDF =====
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [viewLoading, setViewLoading] = useState(false);
   const [selectedCert, setSelectedCert] = useState<any>(null);
-
-  // PDF Base64
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
 
   const userRole = "Director";
   const isDirector = userRole === "Director";
 
-  // SORT
+  /* ================= SORT ================= */
   const sortCertificates = (data: any[]) => {
     const priority: any = { Pending: 1, Active: 2, Expired: 3, Revoked: 4 };
     return [...data].sort((a, b) => {
@@ -59,42 +71,47 @@ export default function CertificateScreen() {
     });
   };
 
-  // LOAD CERTIFICATES
+  /* ================= LOAD ================= */
   const loadData = async () => {
-    setLoading(true);
-    const res = await getAllCertificates();
-    if (res.success && Array.isArray(res.data)) {
-      const sorted = sortCertificates(res.data);
-      setCertificates(sorted);
-      setFiltered(sorted);
+    try {
+      setLoading(true);
+      const skip = (page - 1) * pageSize;
+      const res = await getAllCertificates(skip, pageSize);
+
+      if (res.success) {
+        const sorted = sortCertificates(res.data.data);
+        setCertificates(sorted);
+        setTotalPages(res.data.totalPages);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [page, pageSize]);
 
-  // FILTER
+  /* ================= FILTER ================= */
   useEffect(() => {
-    let data = [...certificates];
+    let data = certificates;
 
     if (statusFilter !== "All") {
-      data = data.filter(
-        (d) => d.status?.toLowerCase() === statusFilter.toLowerCase()
+      data = data.filter((c) => c.status === statusFilter);
+    }
+
+    if (search) {
+      data = data.filter((c) =>
+        `${c.certificateCode} ${c.userId}`
+          .toLowerCase()
+          .includes(search.toLowerCase())
       );
     }
 
-    if (searchText.length > 0) {
-      data = data.filter((d) =>
-        d.certificateCode.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
+    setFiltered(data);
+  }, [search, statusFilter, certificates]);
 
-    setFiltered(sortCertificates(data));
-  }, [statusFilter, searchText, certificates]);
-
-  // OPEN VIEW MODAL
+  /* ================= VIEW ================= */
   const handleView = async (item: any) => {
     setViewModalVisible(true);
     setViewLoading(true);
@@ -107,27 +124,18 @@ export default function CertificateScreen() {
     setViewLoading(false);
   };
 
-  // LOAD PDF
-  const loadCertificatePdf = async (certificateId: string) => {
+  /* ================= PDF ================= */
+  const loadCertificatePdf = async (id: string) => {
     setLoadingPdf(true);
-    try {
-      const res = await getCertificateHtml(certificateId);
-
-      if (res.success && res.isPdf) {
-        // 🔥 Correct Base64 conversion for React Native
-        const base64Pdf = Buffer.from(res.data, "binary").toString("base64");
-        setPdfBase64(base64Pdf);
-      } else {
-        Alert.alert("Error", "Certificate HTML mode not supported yet");
-      }
-    } catch (err) {
-      console.log("PDF Load Error:", err);
-      Alert.alert("Error", "Unable to load PDF");
+    const res = await getCertificateHtml(id);
+    if (res.success && res.isPdf) {
+      const base64Pdf = Buffer.from(res.data, "binary").toString("base64");
+      setPdfBase64(base64Pdf);
     }
     setLoadingPdf(false);
   };
 
-  // SIGN
+  /* ================= ACTIONS ================= */
   const handleSign = (id: string) => {
     Alert.alert("Confirm", "Sign this certificate?", [
       { text: "Cancel" },
@@ -138,282 +146,251 @@ export default function CertificateScreen() {
           if (res.success) {
             Alert.alert("Success", res.message);
             loadData();
-          } else {
-            Alert.alert("Error", res.message);
           }
         },
       },
     ]);
   };
 
-  // UPDATE STATUS
-  const confirmStatusUpdate = (item: any, newStatus: string) => {
-    Alert.alert("Update Status", `Change status to ${newStatus}?`, [
+  const confirmStatusUpdate = (item: any, status: string) => {
+    Alert.alert("Update Status", `Change status to ${status}?`, [
       { text: "Cancel" },
       {
         text: "Confirm",
         onPress: async () => {
           const res = await updateCertificateStatus(
             item.certificateId,
-            newStatus,
-            newStatus === "Revoked" ? "Revoked by Director" : ""
+            status,
+            status === "Revoked" ? "Revoked by Director" : ""
           );
           if (res.success) {
             Alert.alert("Success", res.message);
             loadData();
-          } else {
-            Alert.alert("Error", res.message);
           }
         },
       },
     ]);
   };
 
-  // RENDER ITEM
+  /* ================= STATUS TAG ================= */
+  const getStatusTagStyle = (status: string) => {
+    switch (status) {
+      case "Active":
+        return styles.activeTag;
+      case "Expired":
+        return styles.expiredTag;
+      case "Revoked":
+        return styles.revokedTag;
+      default:
+        return styles.pendingTag;
+    }
+  };
+
+  /* ================= RENDER ================= */
   const renderItem = ({ item }: any) => (
-    <View style={styles.card}>
-      <Text style={styles.title}>{item.certificateCode}</Text>
-      <Text>Status: {item.status}</Text>
-      <Text>User: {item.userId}</Text>
+    <Card style={styles.card}>
+      <Card.Title
+        title={item.certificateCode}
+        subtitle={`User: ${item.userId}`}
+        titleStyle={styles.cardTitle}
+        subtitleStyle={styles.cardSubtitle}
+      />
 
-      <View style={styles.row}>
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: THEME_COLOR }]}
-          onPress={() => handleView(item)}
-        >
-          <Text style={styles.btnText}>View</Text>
-        </TouchableOpacity>
+      <Card.Content>
+        <View style={styles.footerRow}>
+          <View style={[styles.statusTag, getStatusTagStyle(item.status)]}>
+            <Text style={styles.statusText}>{item.status}</Text>
+          </View>
 
-        {isDirector && item.status === "Active" && (
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: "#B01D1D" }]}
-            onPress={() => confirmStatusUpdate(item, "Revoked")}
+          <Button
+            mode="outlined"
+            textColor={PRIMARY}
+            onPress={() => handleView(item)}
           >
-            <Text style={styles.btnText}>Revoke</Text>
-          </TouchableOpacity>
-        )}
-
-        {isDirector && item.status === "Revoked" && (
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: "green" }]}
-            onPress={() => confirmStatusUpdate(item, "Active")}
-          >
-            <Text style={styles.btnText}>Activate</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
+            View
+          </Button>
+        </View>
+      </Card.Content>
+    </Card>
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      {/* SEARCH */}
-      <View style={styles.searchWrapper}>
-        <TextInput
-          placeholder="Search by code"
-          value={searchText}
-          onChangeText={setSearchText}
-          style={styles.searchInput}
-        />
-      </View>
+    <>
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.Content title="Certificates" titleStyle={styles.appbarTitle} />
+      </Appbar.Header>
 
-      {/* FILTER */}
-      <ScrollView horizontal style={styles.filterRow}>
-        {["All", "Pending", "Active", "Expired", "Revoked"].map((s) => (
-          <TouchableOpacity
-            key={s}
-            onPress={() => setStatusFilter(s)}
-            style={[
-              styles.filterBtn,
-              statusFilter === s && styles.filterActive,
-            ]}
-          >
-            <Text
-              style={{
-                color: statusFilter === s ? "#fff" : "#333",
-                fontWeight: "600",
+      <View style={styles.container}>
+        {/* SEARCH */}
+        <TextInput
+          mode="outlined"
+          placeholder="Search certificates..."
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
+          outlineColor={PRIMARY}
+          activeOutlineColor={PRIMARY}
+        />
+
+        {/* STATUS FILTER */}
+        <View style={styles.filterRow}>
+          {STATUS_OPTIONS.map((s) => (
+            <Button
+              key={s}
+              mode={statusFilter === s ? "contained" : "outlined"}
+              onPress={() => {
+                setStatusFilter(s);
+                setPage(1);
               }}
+              buttonColor={statusFilter === s ? PRIMARY : undefined}
+              textColor={statusFilter === s ? "white" : PRIMARY}
+              style={styles.filterBtn}
             >
               {s}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* CERT LIST */}
-      {loading ? (
-        <ActivityIndicator size="large" color={THEME_COLOR} />
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.certificateId}
-          renderItem={renderItem}
-          contentContainerStyle={{ padding: 12 }}
-        />
-      )}
-
-      {/* VIEW MODAL */}
-      <Modal visible={viewModalVisible} animationType="slide">
-        <View style={{ flex: 1, backgroundColor: "#fff" }}>
-          <TouchableOpacity
-            onPress={() => {
-              setViewModalVisible(false);
-              setPdfBase64(null);
-            }}
-            style={styles.closeBtn}
-          >
-            <Text style={{ color: "#fff", fontWeight: "600" }}>Close</Text>
-          </TouchableOpacity>
-
-          {viewLoading ? (
-            <ActivityIndicator size="large" color={THEME_COLOR} />
-          ) : selectedCert ? (
-            <ScrollView style={{ padding: 14 }}>
-              <Text style={styles.modalTitle}>
-                {selectedCert.certificateCode}
-              </Text>
-
-              <Text>User ID: {selectedCert.userId}</Text>
-              <Text>User Name: {selectedCert.userFullName}</Text>
-              <Text>Status: {selectedCert.status}</Text>
-              <Text>Issued By: {selectedCert.issuedByFullName}</Text>
-
-              <Text>
-                Issue Date:{" "}
-                {selectedCert.issueDate
-                  ? new Date(selectedCert.issueDate).toLocaleString()
-                  : "N/A"}
-              </Text>
-              <Text>
-                Sign Date:{" "}
-                {selectedCert.signDate
-                  ? new Date(selectedCert.signDate).toLocaleString()
-                  : "N/A"}
-              </Text>
-
-              {/* PDF VIEW */}
-              <TouchableOpacity
-                style={[
-                  styles.btn,
-                  { marginTop: 20, backgroundColor: THEME_COLOR },
-                ]}
-                onPress={() => loadCertificatePdf(selectedCert.certificateId)}
-              >
-                <Text style={styles.btnText}>View Certificate PDF</Text>
-              </TouchableOpacity>
-
-              {loadingPdf ? (
-                <ActivityIndicator
-                  size="large"
-                  color={THEME_COLOR}
-                  style={{ marginTop: 20 }}
-                />
-              ) : pdfBase64 ? (
-                <View
-                  style={{
-                    height: 600,
-                    marginTop: 20,
-                    borderWidth: 1,
-                    borderColor: "#ccc",
-                  }}
-                >
-                  <WebView
-                    originWhitelist={["*"]}
-                    source={{
-                      uri: `data:application/pdf;base64,${pdfBase64}`,
-                    }}
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              ) : null}
-
-              {/* ACTION BUTTONS */}
-              {isDirector && selectedCert.status === "Pending" && (
-                <TouchableOpacity
-                  style={[
-                    styles.btn,
-                    { marginTop: 20, backgroundColor: THEME_COLOR },
-                  ]}
-                  onPress={() => handleSign(selectedCert.certificateId)}
-                >
-                  <Text style={styles.btnText}>Sign Certificate</Text>
-                </TouchableOpacity>
-              )}
-
-              {isDirector && selectedCert.status === "Active" && (
-                <TouchableOpacity
-                  style={[
-                    styles.btn,
-                    { marginTop: 10, backgroundColor: "#B01D1D" },
-                  ]}
-                  onPress={() => confirmStatusUpdate(selectedCert, "Revoked")}
-                >
-                  <Text style={styles.btnText}>Revoke</Text>
-                </TouchableOpacity>
-              )}
-
-              {isDirector && selectedCert.status === "Revoked" && (
-                <TouchableOpacity
-                  style={[
-                    styles.btn,
-                    { marginTop: 10, backgroundColor: "green" },
-                  ]}
-                  onPress={() => confirmStatusUpdate(selectedCert, "Active")}
-                >
-                  <Text style={styles.btnText}>Activate</Text>
-                </TouchableOpacity>
-              )}
-            </ScrollView>
-          ) : null}
+            </Button>
+          ))}
         </View>
-      </Modal>
-    </View>
+
+        {/* TAKE DROPDOWN */}
+        <View style={styles.pageSizeRow}>
+          <Text style={styles.pageSizeLabel}>Rows per page</Text>
+          <Menu
+            visible={pageSizeMenuVisible}
+            onDismiss={() => setPageSizeMenuVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                icon="chevron-down"
+                onPress={() => setPageSizeMenuVisible(true)}
+                textColor={PRIMARY}
+                style={styles.pageSizeDropdown}
+              >
+                {pageSize}
+              </Button>
+            }
+          >
+            {PAGE_SIZE_OPTIONS.map((s) => (
+              <Menu.Item
+                key={s}
+                title={`${s}`}
+                onPress={() => {
+                  setPageSize(s);
+                  setPage(1);
+                  setPageSizeMenuVisible(false);
+                }}
+              />
+            ))}
+          </Menu>
+        </View>
+
+        {/* LIST */}
+        {loading ? (
+          <ActivityIndicator size="large" color={PRIMARY} />
+        ) : (
+          <>
+            <FlatList
+              data={filtered}
+              keyExtractor={(i) => i.certificateId}
+              renderItem={renderItem}
+              refreshControl={
+                <RefreshControl
+                  refreshing={loading}
+                  onRefresh={loadData}
+                  colors={[PRIMARY]}
+                />
+              }
+            />
+
+            {/* PAGINATION */}
+            <View style={styles.pagination}>
+              <Button
+                mode="outlined"
+                disabled={page === 1}
+                onPress={() => setPage((p) => p - 1)}
+                textColor={PRIMARY}
+              >
+                Previous
+              </Button>
+
+              <Text style={styles.pageText}>
+                Page {page} / {totalPages}
+              </Text>
+
+              <Button
+                mode="outlined"
+                disabled={page === totalPages}
+                onPress={() => setPage((p) => p + 1)}
+                textColor={PRIMARY}
+              >
+                Next
+              </Button>
+            </View>
+          </>
+        )}
+      </View>
+    </>
   );
 }
 
+/* ================= STYLES (MATCH COURSE PAGE) ================= */
+
 const styles = StyleSheet.create({
-  card: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#ccc",
+  appbar: { backgroundColor: "white", elevation: 2 },
+  appbarTitle: { color: PRIMARY, fontWeight: "800" },
+
+  container: { flex: 1, padding: 16, backgroundColor: "#F4F3FF" },
+
+  search: { marginBottom: 12, backgroundColor: "white" },
+
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
     marginBottom: 12,
-    backgroundColor: "#fff",
   },
-  title: { fontSize: 16, fontWeight: "700", marginBottom: 6 },
-  row: { flexDirection: "row", gap: 10, marginTop: 10 },
+  filterBtn: { borderRadius: 20 },
 
-  btn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  btnText: { color: "#fff", fontWeight: "600" },
-
-  searchWrapper: { padding: 12 },
-  searchInput: {
-    backgroundColor: "#f2f2f2",
-    padding: 10,
-    borderRadius: 10,
-  },
-
-  filterRow: { paddingLeft: 12, marginBottom: 8 },
-  filterBtn: {
-    width: 90,
-    height: 40,
-    justifyContent: "center",
+  pageSizeRow: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e8e8e8",
-    borderRadius: 20,
-    marginRight: 8,
+    gap: 8,
+    marginBottom: 12,
   },
-  filterActive: { backgroundColor: "#3620AC" },
+  pageSizeLabel: { fontWeight: "700", color: "#2D2A6E" },
+  pageSizeDropdown: { borderRadius: 12, borderColor: PRIMARY },
 
-  closeBtn: {
-    backgroundColor: "#3620AC",
-    padding: 14,
+  card: {
+    marginBottom: 12,
+    borderRadius: 16,
+    backgroundColor: "white",
+    borderLeftWidth: 5,
+    borderLeftColor: PRIMARY,
+  },
+  cardTitle: { fontWeight: "700", color: "#1E1B4B" },
+  cardSubtitle: { color: "#4B5563" },
+
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
 
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 10 },
+  statusTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: { color: "white", fontSize: 12, fontWeight: "700" },
+
+  pendingTag: { backgroundColor: "#F1C40F" },
+  activeTag: { backgroundColor: "#2ECC71" },
+  expiredTag: { backgroundColor: "#95A5A6" },
+  revokedTag: { backgroundColor: "#E74C3C" },
+
+  pagination: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+  },
+  pageText: { fontWeight: "800", color: "#2D2A6E" },
 });

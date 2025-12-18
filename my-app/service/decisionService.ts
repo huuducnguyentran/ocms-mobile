@@ -4,22 +4,37 @@ import { DECISION_URLS, SIGNATURE_URLS } from "../api/apiUrl";
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
-  data: T | null;
+  data: T;
 }
 
 /* ============================================================
-    GET ALL DECISIONS (admin/director/officer)
+   GET ALL DECISIONS (LIKE CERTIFICATE API)
+   skip = (page - 1) * take
 ============================================================ */
-export const getAllDecisions = async (): Promise<ApiResponse<any[]>> => {
+export const getAllDecisions = async (
+  skip: number,
+  take: number
+): Promise<
+  ApiResponse<{
+    data: any[];
+    totalPages: number;
+  }>
+> => {
   try {
-    const res = await axiosInstance.get(DECISION_URLS.GET_ALL_DECISION);
+    const res = await axiosInstance.get(DECISION_URLS.GET_ALL_DECISION, {
+      params: { skip, take },
+    });
+
     return res.data;
   } catch (error) {
     console.error("❌ Error getAllDecisions:", error);
     return {
       success: false,
       message: "Failed to fetch decisions.",
-      data: [],
+      data: {
+        data: [],
+        totalPages: 1,
+      },
     };
   }
 };

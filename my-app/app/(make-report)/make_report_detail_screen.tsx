@@ -18,6 +18,14 @@ import {
 
 const PRIMARY = "#3620AC";
 
+/* ================= HELPERS ================= */
+const isPass = (status?: string) => status?.toLowerCase().includes("pass");
+
+const isTotal = (kind?: string) =>
+  kind?.toLowerCase().includes("total") ||
+  kind?.toLowerCase().includes("final");
+
+/* ================= SCREEN ================= */
 export default function MakeReportDetailScreen() {
   const { classId } = useLocalSearchParams<{ classId: string }>();
   const router = useRouter();
@@ -56,7 +64,7 @@ export default function MakeReportDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* HEADER */}
+      {/* ================= HEADER ================= */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.back}>←</Text>
@@ -64,7 +72,7 @@ export default function MakeReportDetailScreen() {
         <Text style={styles.headerTitle}>Class Report</Text>
       </View>
 
-      {/* CLASS INFO */}
+      {/* ================= CLASS INFO ================= */}
       <Card style={styles.card}>
         <Text style={styles.title}>{classDetail.subjectName}</Text>
         <Text style={styles.subtitle}>{classDetail.subjectId}</Text>
@@ -76,7 +84,7 @@ export default function MakeReportDetailScreen() {
         <Text style={styles.value}>{classDetail.classGroupCode}</Text>
       </Card>
 
-      {/* TRAINEE LIST */}
+      {/* ================= TRAINEES ================= */}
       <Card style={styles.card}>
         <Text style={styles.section}>Trainees</Text>
 
@@ -91,16 +99,14 @@ export default function MakeReportDetailScreen() {
                 selectedTrainee === t.traineeId && styles.traineeSelected,
               ]}
             >
-              <View>
-                <Text style={styles.traineeName}>{t.traineeName}</Text>
-                <Text style={styles.traineeId}>{t.traineeId}</Text>
-              </View>
+              <Text style={styles.traineeName}>{t.traineeName}</Text>
+              <Text style={styles.traineeId}>{t.traineeId}</Text>
             </View>
           </TouchableOpacity>
         ))}
       </Card>
 
-      {/* GRADES */}
+      {/* ================= GRADES (ALWAYS EXPANDED) ================= */}
       {selectedTrainee && (
         <Card style={styles.card}>
           <Text style={styles.section}>Grades</Text>
@@ -111,19 +117,50 @@ export default function MakeReportDetailScreen() {
             <Text style={styles.noGrade}>No grades recorded.</Text>
           ) : (
             grades.map((g) => (
-              <View key={g.traineeAssignationGradeId} style={styles.gradeRow}>
+              <View
+                key={g.traineeAssignationGradeId}
+                style={[
+                  styles.gradeRow,
+                  isTotal(g.gradeKind) && styles.totalRow,
+                ]}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.gradeKind}>{g.gradeKind}</Text>
-                  <Text style={styles.gradeStatus}>{g.gradeStatus}</Text>
+
+                  {/* PASS / FAIL TAG */}
+                  <View
+                    style={[
+                      styles.statusTag,
+                      isPass(g.gradeStatus) ? styles.passTag : styles.failTag,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        isPass(g.gradeStatus)
+                          ? styles.passText
+                          : styles.failText,
+                      ]}
+                    >
+                      {g.gradeStatus}
+                    </Text>
+                  </View>
 
                   {"weight" in g && g.weight !== undefined && (
                     <Text style={styles.weightText}>
-                      {(g.weight * 100).toFixed(0)}%
+                      Weight: {(g.weight * 100).toFixed(0)}%
                     </Text>
                   )}
                 </View>
 
-                <Text style={styles.gradeValue}>{g.grade}</Text>
+                <Text
+                  style={[
+                    styles.gradeValue,
+                    isTotal(g.gradeKind) && styles.totalValue,
+                  ]}
+                >
+                  {g.grade}
+                </Text>
               </View>
             ))
           )}
@@ -133,6 +170,7 @@ export default function MakeReportDetailScreen() {
   );
 }
 
+/* ================= STYLES ================= */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FAF9FF", padding: 16 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -167,7 +205,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#EEE",
   },
-  traineeSelected: { backgroundColor: "#EFEAFF" },
+  traineeSelected: { backgroundColor: "#EFEAFF", borderRadius: 10 },
 
   traineeName: { fontSize: 16, fontWeight: "600" },
   traineeId: { fontSize: 14, color: "#555" },
@@ -175,15 +213,44 @@ const styles = StyleSheet.create({
   gradeRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderColor: "#EEE",
   },
+
   gradeKind: { fontSize: 16, fontWeight: "700", color: PRIMARY },
-  gradeStatus: { fontSize: 13, color: "#666" },
-  weightText: { fontSize: 13, color: "#444" },
 
   gradeValue: { fontSize: 20, fontWeight: "800", color: PRIMARY },
+
+  /* STATUS TAG */
+  statusTag: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  passTag: { backgroundColor: "#E8F7EF" },
+  failTag: { backgroundColor: "#FDEAEA" },
+
+  statusText: { fontSize: 12, fontWeight: "700" },
+  passText: { color: "#1E8E5A" },
+  failText: { color: "#C62828" },
+
+  weightText: { fontSize: 13, color: "#444" },
+
+  /* TOTAL SCORE */
+  totalRow: {
+    backgroundColor: "#F3F0FF",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+  },
+  totalValue: {
+    fontSize: 30,
+    fontWeight: "900",
+    color: PRIMARY,
+  },
 
   noGrade: { color: "#666", fontStyle: "italic" },
 });
