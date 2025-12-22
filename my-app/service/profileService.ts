@@ -11,6 +11,7 @@ export interface ProfileData {
   dateOfBirth?: string;
   citizenId?: string;
   avatarUrl?: string;
+  hasFace?: boolean;
 }
 
 export interface ProfileResponse {

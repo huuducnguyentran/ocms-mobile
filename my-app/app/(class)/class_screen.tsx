@@ -53,8 +53,8 @@ export default function MyClassScreen() {
     <TouchableOpacity
       onPress={() =>
         router.push({
-          pathname: "/class_detail_screen",
-          params: { classId: item.classId },
+          pathname: "/(class)/class_info_screen",
+          params: { classId: String(item.classId) },
         })
       }
     >

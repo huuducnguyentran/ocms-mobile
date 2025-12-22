@@ -21,6 +21,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import TopBar from "@/components/TopBar";
 import NavBar from "@/components/NavBar";
 import { profileService, ProfileData } from "@/service/profileService";
+import { faceRecognitionService } from "@/service/faceRecognitionService";
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -47,6 +48,8 @@ export default function ProfileScreen() {
     try {
       setIsLoading(true);
       const response = await profileService.getProfile();
+      console.log("Profile loaded:", response.data);
+      console.log("hasFace value:", response.data.hasFace);
       setProfile(response.data);
       setFormData({
         fullName: response.data.fullName || "",
@@ -57,6 +60,13 @@ export default function ProfileScreen() {
         citizenId: response.data.citizenId || "",
       });
     } catch (error: any) {
+      // Don't show alert or log for 401 errors - axios interceptor will redirect to login
+      if (error.response?.status === 401) {
+        // User will be redirected to login, no need to show error or log
+        setIsLoading(false);
+        return;
+      }
+      // Only log and show alert for other errors
       console.error("Failed to load profile:", error);
       Alert.alert("Error", "Failed to load profile. Please try again.");
     } finally {
@@ -75,7 +85,8 @@ export default function ProfileScreen() {
       console.error("Failed to update profile:", error);
       Alert.alert(
         "Error",
-        error.response?.data?.message || "Failed to update profile. Please try again."
+        error.response?.data?.message ||
+          "Failed to update profile. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -99,7 +110,8 @@ export default function ProfileScreen() {
   const handleAvatarUpload = async () => {
     try {
       // Request permission
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
           "Permission Required",
@@ -119,7 +131,7 @@ export default function ProfileScreen() {
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         const formData = new FormData();
-        
+
         // Create file object for FormData
         const fileUri = asset.uri;
         const fileName = fileUri.split("/").pop() || "avatar.jpg";
@@ -140,7 +152,76 @@ export default function ProfileScreen() {
       console.error("Failed to upload avatar:", error);
       Alert.alert(
         "Error",
-        error.response?.data?.message || "Failed to upload avatar. Please try again."
+        error.response?.data?.message ||
+          "Failed to upload avatar. Please try again."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRegisterFace = async () => {
+    try {
+      if (!profile?.userId) {
+        Alert.alert("Error", "User ID not found.");
+        return;
+      }
+
+      // Request camera permission
+      const { status: cameraStatus } =
+        await ImagePicker.requestCameraPermissionsAsync();
+      if (cameraStatus !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Please grant permission to access your camera."
+        );
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const formData = new FormData();
+
+        // Create file object for FormData
+        const fileUri = asset.uri;
+        const fileName = fileUri.split("/").pop() || "face.jpg";
+        const fileType = `image/${fileName.split(".").pop() || "jpg"}`;
+
+        // Append userId and imageFile as per API requirements
+        formData.append("userId", profile.userId);
+        formData.append("imageFile", {
+          uri: Platform.OS === "ios" ? fileUri.replace("file://", "") : fileUri,
+          name: fileName,
+          type: fileType,
+        } as any);
+
+        setIsSaving(true);
+        const response = await faceRecognitionService.registerFace(
+          profile.userId,
+          formData
+        );
+
+        if (response.success) {
+          await loadProfile(); // Reload profile to update hasFace status
+          Alert.alert("Success", "Face registered successfully!");
+        } else {
+          Alert.alert("Error", response.message || "Failed to register face.");
+        }
+      }
+    } catch (error: any) {
+      console.error("Failed to register face:", error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message ||
+          "Failed to register face. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -171,12 +252,20 @@ export default function ProfileScreen() {
     );
   }
 
+  console.log("🔍 [Profile] Component rendering");
+  console.log("🔍 [Profile] profile state:", profile);
+  console.log("🔍 [Profile] isLoading:", isLoading);
+  console.log("🔍 [Profile] isSaving:", isSaving);
+
   return (
     <ProtectedRoute>
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
         <TopBar onMenuPress={() => setDrawerVisible(true)} />
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
             <TouchableOpacity
@@ -185,7 +274,10 @@ export default function ProfileScreen() {
               disabled={isSaving}
             >
               {profile?.avatarUrl ? (
-                <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
+                <Image
+                  source={{ uri: profile.avatarUrl }}
+                  style={styles.avatar}
+                />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Text style={styles.avatarText}>
@@ -226,13 +318,16 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={handleSave}
-                    style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                    style={[
+                      styles.saveButton,
+                      isSaving && styles.saveButtonDisabled,
+                    ]}
                     disabled={isSaving}
                   >
                     {isSaving ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                    <Text style={styles.saveButtonText}>Save</Text>
+                      <Text style={styles.saveButtonText}>Save</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -246,7 +341,9 @@ export default function ProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={formData.fullName}
-                  onChangeText={(text) => setFormData({ ...formData, fullName: text })}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, fullName: text })
+                  }
                   placeholder="Enter full name"
                   editable={!isSaving}
                 />
@@ -264,7 +361,9 @@ export default function ProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, email: text })
+                  }
                   placeholder="Enter email"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -284,7 +383,9 @@ export default function ProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={formData.phoneNumber}
-                  onChangeText={(text) => setFormData({ ...formData, phoneNumber: text })}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, phoneNumber: text })
+                  }
                   placeholder="Enter phone number"
                   keyboardType="phone-pad"
                   editable={!isSaving}
@@ -350,7 +451,9 @@ export default function ProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={formData.dateOfBirth}
-                  onChangeText={(text) => setFormData({ ...formData, dateOfBirth: text })}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, dateOfBirth: text })
+                  }
                   placeholder="YYYY-MM-DD"
                   editable={!isSaving}
                 />
@@ -368,7 +471,9 @@ export default function ProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={formData.citizenId}
-                  onChangeText={(text) => setFormData({ ...formData, citizenId: text })}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, citizenId: text })
+                  }
                   placeholder="Enter citizen ID"
                   editable={!isSaving}
                 />
@@ -387,6 +492,87 @@ export default function ProfileScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Face Recognition Section */}
+          {(() => {
+            console.log("🔍 [Profile] Rendering Face Recognition Section");
+            console.log("🔍 [Profile] profile exists:", !!profile);
+            console.log("🔍 [Profile] profile.hasFace:", profile?.hasFace);
+            console.log(
+              "🔍 [Profile] profile.hasFace !== true:",
+              profile?.hasFace !== true
+            );
+            return (
+              <View style={styles.faceRecognitionSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Face Recognition</Text>
+                </View>
+                {profile ? (
+                  <>
+                    <View style={styles.faceStatusContainer}>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          profile.hasFace === true
+                            ? styles.statusBadgeActive
+                            : styles.statusBadgeInactive,
+                        ]}
+                      >
+                        <Ionicons
+                          name={
+                            profile.hasFace === true
+                              ? "checkmark-circle"
+                              : "close-circle"
+                          }
+                          size={20}
+                          color={
+                            profile.hasFace === true ? "#4CAF50" : "#D32F2F"
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.statusText,
+                            profile.hasFace === true
+                              ? styles.statusTextActive
+                              : styles.statusTextInactive,
+                          ]}
+                        >
+                          {profile.hasFace === true
+                            ? "Face Registered"
+                            : "Face Not Registered"}
+                        </Text>
+                      </View>
+                    </View>
+                    {profile.hasFace !== true && (
+                      <TouchableOpacity
+                        style={styles.registerFaceButton}
+                        onPress={() => {
+                          console.log(
+                            "🔍 [Profile] Register Face button pressed"
+                          );
+                          handleRegisterFace();
+                        }}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons name="camera" size={20} color="#fff" />
+                            <Text style={styles.registerFaceButtonText}>
+                              Register Face
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.fieldValue}>Loading...</Text>
+                )}
+              </View>
+            );
+          })()}
 
           {/* Change Password Section */}
           <View style={styles.passwordSection}>
@@ -606,6 +792,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
+  faceRecognitionSection: {
+    backgroundColor: "#fff",
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
   passwordSection: {
     marginTop: 20,
     paddingHorizontal: 20,
@@ -624,5 +816,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  faceStatusContainer: {
+    marginBottom: 15,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+    flex: 1,
+    minWidth: 150,
+  },
+  statusBadgeActive: {
+    backgroundColor: "#E8F7EF",
+  },
+  statusBadgeInactive: {
+    backgroundColor: "#FDEAEA",
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  statusTextActive: {
+    color: "#4CAF50",
+  },
+  statusTextInactive: {
+    color: "#D32F2F",
+  },
+  registerFaceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2B1989",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderRadius: 12,
+    gap: 10,
+    width: "100%",
+    marginTop: 10,
+  },
+  registerFaceButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
-

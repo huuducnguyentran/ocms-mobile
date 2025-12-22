@@ -46,16 +46,17 @@ export default function MyCertificateScreen() {
 
   // When clicking "View Certificate"
   const viewCertificate = async (id: string) => {
-    const res = await getCertificateHtml(id);
-    if (!res.success) return;
-
-    router.push({
-      pathname: "/certificate_viewer_screen",
-      params: {
-        certificateId: id,
-        isPdf: res.isPdf ? "true" : "false",
-      },
-    });
+    try {
+      // Navigate first, then load in the viewer screen
+      router.push({
+        pathname: "/(certificate)/certificate_viewer_screen",
+        params: {
+          certificateId: id,
+        },
+      });
+    } catch (error) {
+      console.error("[MyCertificate] Error navigating:", error);
+    }
   };
 
   return (

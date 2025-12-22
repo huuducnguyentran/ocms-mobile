@@ -1,5 +1,6 @@
 import axiosInstance from "@/utils/axiosInstance";
 import { SPECIALTY_URLS } from "@/api/apiUrl";
+import { storage } from "@/utils/storage";
 
 /* ================= INTERFACES ================= */
 
@@ -24,7 +25,7 @@ export interface ApiResponse<T> {
  */
 export const getAllSpecialty = async (): Promise<ApiResponse<Specialty[]>> => {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = await storage.getItem("token");
 
     const res = await axiosInstance.get(SPECIALTY_URLS.GET_ALL, {
       headers: {

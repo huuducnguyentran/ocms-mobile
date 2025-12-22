@@ -11,7 +11,10 @@ import {
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { TextInput, Button, IconButton } from "react-native-paper";
+import { Ionicons } from "@expo/vector-icons";
+import { Platform, ActivityIndicator } from "react-native";
 import { profileService } from "@/service/profileService";
+import { faceRecognitionService } from "@/service/faceRecognitionService";
 
 const PRIMARY = "#5A39F0";
 const TEXT_PRIMARY = "#111827"; // Almost black
@@ -25,6 +28,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [tab, setTab] = useState<"info" | "password">("info");
+  const [isRegisteringFace, setIsRegisteringFace] = useState(false);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -44,6 +48,8 @@ export default function ProfileScreen() {
   const fetchProfile = async () => {
     try {
       const res = await profileService.getProfile();
+      console.log("🔍 [ProfileScreen] Profile loaded:", res.data);
+      console.log("🔍 [ProfileScreen] hasFace:", res.data.hasFace);
       setProfile(res.data);
       setForm({
         fullName: res.data.fullName || "",
@@ -117,6 +123,21 @@ export default function ProfileScreen() {
     } catch (e: any) {
       Alert.alert("Error", e.response?.data || "Change failed");
     }
+  };
+
+  /* ================= REGISTER FACE ================= */
+  const handleRegisterFace = () => {
+    if (!profile?.userId) {
+      Alert.alert("Error", "User ID not found.");
+      return;
+    }
+
+    console.log("🔍 [ProfileScreen] Register Face button pressed");
+    // Navigate to face camera screen
+    router.push({
+      pathname: "/(user)/face-camera-screen",
+      params: { userId: profile.userId },
+    } as any);
   };
 
   if (loading) {
@@ -257,6 +278,62 @@ export default function ProfileScreen() {
               Save Changes
             </Button>
           )}
+
+          {/* Face Recognition Section */}
+          <View style={styles.faceRecognitionSection}>
+            <Text style={styles.faceRecognitionTitle}>Face Recognition</Text>
+            {profile && (
+              <>
+                <View style={styles.faceStatusContainer}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      profile.hasFace === true
+                        ? styles.statusBadgeActive
+                        : styles.statusBadgeInactive,
+                    ]}
+                  >
+                    <Ionicons
+                      name={
+                        profile.hasFace === true
+                          ? "checkmark-circle"
+                          : "close-circle"
+                      }
+                      size={20}
+                      color={profile.hasFace === true ? "#4CAF50" : "#D32F2F"}
+                    />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        profile.hasFace === true
+                          ? styles.statusTextActive
+                          : styles.statusTextInactive,
+                      ]}
+                    >
+                      {profile.hasFace === true
+                        ? "Face Registered"
+                        : "Face Not Registered"}
+                    </Text>
+                  </View>
+                </View>
+                {profile.hasFace !== true && (
+                  <Button
+                    mode="contained"
+                    onPress={handleRegisterFace}
+                    disabled={isRegisteringFace}
+                    style={styles.registerFaceButton}
+                    icon={isRegisteringFace ? undefined : "camera"}
+                  >
+                    {isRegisteringFace ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      "Register Face"
+                    )}
+                  </Button>
+                )}
+              </>
+            )}
+          </View>
         </View>
       )}
 
@@ -371,4 +448,57 @@ const styles = StyleSheet.create({
   },
 
   input: { marginBottom: 14, backgroundColor: "white" },
+
+  faceRecognitionSection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: BORDER_DARK,
+  },
+
+  faceRecognitionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: TEXT_PRIMARY,
+    marginBottom: 16,
+  },
+
+  faceStatusContainer: {
+    marginBottom: 16,
+  },
+
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+
+  statusBadgeActive: {
+    backgroundColor: "#E8F7EF",
+  },
+
+  statusBadgeInactive: {
+    backgroundColor: "#FDEAEA",
+  },
+
+  statusText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  statusTextActive: {
+    color: "#4CAF50",
+  },
+
+  statusTextInactive: {
+    color: "#D32F2F",
+  },
+
+  registerFaceButton: {
+    marginTop: 8,
+    backgroundColor: PRIMARY,
+  },
 });

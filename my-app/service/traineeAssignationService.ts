@@ -1,6 +1,7 @@
 // src/service/traineeAssignationService.ts
 import axiosInstance from "@/utils/axiosInstance";
 import { TRAINEE_ASSIGNATION_URLS } from "@/api/apiUrl";
+import { storage } from "@/utils/storage";
 
 export interface TraineeGradeRecord {
   traineeAssignationGradeId: string;
@@ -8,6 +9,7 @@ export interface TraineeGradeRecord {
   gradeKind: string;
   grade: number;
   gradeStatus: string;
+  status?: string; // e.g. "Active"
   weight?: number;
   createdAt: string;
   updatedAt: string;
@@ -33,7 +35,7 @@ export const getGradesByClassAndTrainee = async (
   traineeId: string
 ): Promise<ApiResponse<TraineeGradeRecord[]>> => {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = await storage.getItem("token");
 
     const res = await axiosInstance.get(
       `${TRAINEE_ASSIGNATION_URLS.GET_GRADES_BY_CLASS_AND_TRAINEE}/${classId}/trainee/${traineeId}/grades`,
@@ -59,7 +61,7 @@ export const addGradeToTraineeAssignation = async (
   payload: AddTraineeGradeRequest
 ): Promise<ApiResponse<TraineeGradeRecord>> => {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = await storage.getItem("token");
 
     const res = await axiosInstance.post(
       `${TRAINEE_ASSIGNATION_URLS.CREATE}/${traineeAssignationId}/grades`,
