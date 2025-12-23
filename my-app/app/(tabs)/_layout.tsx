@@ -56,16 +56,6 @@ export default function TabLayout() {
           },
           { name: "certificate", title: "Certificate", icon: "document-text" },
         ];
-      case "Instructor":
-        return [
-          { name: "index", title: "Home", icon: "home" },
-          {
-            name: "notification",
-            title: "Notification",
-            icon: "notifications",
-          },
-          { name: "grade", title: "Grade", icon: "school" },
-        ];
       default:
         return [
           { name: "index", title: "Home", icon: "home" },
