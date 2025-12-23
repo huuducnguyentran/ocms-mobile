@@ -6,9 +6,11 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  SafeAreaView,
 } from "react-native";
 import { Card, Searchbar, Chip } from "react-native-paper";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 const PRIMARY = "#3620AC";
 
@@ -82,13 +84,25 @@ export default function MyClassScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <Searchbar
-        placeholder="Search class..."
-        value={search}
-        onChangeText={handleSearch}
-        style={styles.searchBar}
-      />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Classes</Text>
+        </View>
+
+        <Searchbar
+          placeholder="Search class..."
+          value={search}
+          onChangeText={handleSearch}
+          style={styles.searchBar}
+        />
 
       <FlatList
         data={filtered}
@@ -96,15 +110,36 @@ export default function MyClassScreen() {
         renderItem={renderClass}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FAF9FF",
+  },
   container: {
     flex: 1,
     backgroundColor: "#FAF9FF",
     padding: 14,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingTop: 8,
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: PRIMARY,
+    flex: 1,
   },
   searchBar: {
     marginBottom: 14,

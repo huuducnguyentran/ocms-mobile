@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import { Card, ActivityIndicator } from "react-native-paper";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -13,6 +14,7 @@ import {
   getAttendanceByClassId,
   AttendanceRecord,
 } from "@/service/attendanceService";
+import { Ionicons } from "@expo/vector-icons";
 
 const PRIMARY = "#3620AC";
 
@@ -55,114 +57,123 @@ export default function ClassDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Class Detail</Text>
-      </View>
-
-      {/* MAIN CARD */}
-      <Card style={styles.card}>
-        <Text style={styles.title}>{classDetail.subjectName}</Text>
-        <Text style={styles.subtitle}>{classDetail.subjectId}</Text>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Instructor</Text>
-          <Text style={styles.value}>{classDetail.instructorName}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Class Detail</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Group</Text>
-          <Text style={styles.value}>{classDetail.classGroupCode}</Text>
-        </View>
+        {/* MAIN CARD */}
+        <Card style={styles.card}>
+          <Text style={styles.title}>{classDetail.subjectName}</Text>
+          <Text style={styles.subtitle}>{classDetail.subjectId}</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Slot</Text>
-          <Text style={styles.value}>{classDetail.slot}</Text>
-        </View>
-      </Card>
-
-      {/* SCORE RULES */}
-      <Card style={styles.card}>
-        <Text style={styles.sectionTitle}>Minimum Score Requirements</Text>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Progress Test</Text>
-          <Text style={styles.value}>{classDetail.minProgressTest}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Practice Exam</Text>
-          <Text style={styles.value}>{classDetail.minPracticeExamScore}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Final Exam</Text>
-          <Text style={styles.value}>{classDetail.minFinalExamScore}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Total Score</Text>
-          <Text style={styles.value}>{classDetail.minTotalScore}</Text>
-        </View>
-      </Card>
-
-      {/* TRAINEE LIST */}
-      <Card style={styles.card}>
-        <Text style={styles.sectionTitle}>Trainees</Text>
-
-        {classDetail.traineeAssignations.map((t) => (
-          <View key={t.traineeAssignationId} style={styles.studentRow}>
-            <Text style={styles.studentName}>{t.traineeName}</Text>
-            <Text style={styles.studentId}>{t.traineeId}</Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Instructor</Text>
+            <Text style={styles.value}>{classDetail.instructorName}</Text>
           </View>
-        ))}
-      </Card>
 
-      {/* ATTENDANCE LIST */}
-      <Card style={styles.card}>
-        <Text style={styles.sectionTitle}>Attendance</Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Group</Text>
+            <Text style={styles.value}>{classDetail.classGroupCode}</Text>
+          </View>
 
-        {attendance.length === 0 && (
-          <Text style={{ color: "#666", fontStyle: "italic" }}>
-            No attendance recorded yet.
-          </Text>
-        )}
+          <View style={styles.section}>
+            <Text style={styles.label}>Slot</Text>
+            <Text style={styles.value}>{classDetail.slot}</Text>
+          </View>
+        </Card>
 
-        {attendance.map((a) => {
-          const statusColor =
-            a.statusDisplay === "Present"
-              ? "#4CAF50"
-              : a.statusDisplay === "Absent"
-              ? "#D32F2F"
-              : "#F57C00";
+        {/* SCORE RULES */}
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Minimum Score Requirements</Text>
 
-          return (
-            <View key={a.attendanceId} style={styles.attendanceItem}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.attendanceSlot}>Slot {a.slot}</Text>
-                <Text style={styles.attendanceDate}>
-                  {new Date(a.date).toLocaleDateString()}
-                </Text>
-              </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>Progress Test</Text>
+            <Text style={styles.value}>{classDetail.minProgressTest}</Text>
+          </View>
 
-              <View
-                style={[styles.statusPill, { backgroundColor: statusColor }]}
-              >
-                <Text style={styles.statusPillText}>{a.statusDisplay}</Text>
-              </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>Practice Exam</Text>
+            <Text style={styles.value}>{classDetail.minPracticeExamScore}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Final Exam</Text>
+            <Text style={styles.value}>{classDetail.minFinalExamScore}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Total Score</Text>
+            <Text style={styles.value}>{classDetail.minTotalScore}</Text>
+          </View>
+        </Card>
+
+        {/* TRAINEE LIST */}
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Trainees</Text>
+
+          {classDetail.traineeAssignations.map((t) => (
+            <View key={t.traineeAssignationId} style={styles.studentRow}>
+              <Text style={styles.studentName}>{t.traineeName}</Text>
+              <Text style={styles.studentId}>{t.traineeId}</Text>
             </View>
-          );
-        })}
-      </Card>
-    </ScrollView>
+          ))}
+        </Card>
+
+        {/* ATTENDANCE LIST */}
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Attendance</Text>
+
+          {attendance.length === 0 && (
+            <Text style={{ color: "#666", fontStyle: "italic" }}>
+              No attendance recorded yet.
+            </Text>
+          )}
+
+          {attendance.map((a) => {
+            const statusColor =
+              a.statusDisplay === "Present"
+                ? "#4CAF50"
+                : a.statusDisplay === "Absent"
+                ? "#D32F2F"
+                : "#F57C00";
+
+            return (
+              <View key={a.attendanceId} style={styles.attendanceItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.attendanceSlot}>Slot {a.slot}</Text>
+                  <Text style={styles.attendanceDate}>
+                    {new Date(a.date).toLocaleDateString()}
+                  </Text>
+                </View>
+
+                <View
+                  style={[styles.statusPill, { backgroundColor: statusColor }]}
+                >
+                  <Text style={styles.statusPillText}>{a.statusDisplay}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FAF9FF",
+  },
   container: {
     flex: 1,
     backgroundColor: "#FAF9FF",
@@ -179,13 +190,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
+    paddingTop: 8,
   },
 
-  backIcon: {
-    fontSize: 28,
-    color: PRIMARY,
-    fontWeight: "bold",
+  backButton: {
     marginRight: 12,
+    padding: 4,
   },
 
   headerTitle: {

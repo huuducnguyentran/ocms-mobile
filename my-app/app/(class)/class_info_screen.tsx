@@ -5,10 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import { Card, ActivityIndicator } from "react-native-paper";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getMyClassById, MyClassDetail } from "@/service/classService";
+import { Ionicons } from "@expo/vector-icons";
 
 const PRIMARY = "#3620AC";
 
@@ -48,44 +50,61 @@ export default function ClassInfoScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* MAIN CARD */}
-      <Card style={styles.card}>
-        <Text style={styles.title}>{classDetail.subjectName}</Text>
-        <Text style={styles.subtitle}>{classDetail.subjectId}</Text>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Instructor</Text>
-          <Text style={styles.value}>{classDetail.instructorName}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Class Info</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Group</Text>
-          <Text style={styles.value}>{classDetail.classGroupCode}</Text>
-        </View>
+        {/* MAIN CARD */}
+        <Card style={styles.card}>
+          <Text style={styles.title}>{classDetail.subjectName}</Text>
+          <Text style={styles.subtitle}>{classDetail.subjectId}</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Slot</Text>
-          <Text style={styles.value}>{classDetail.slot}</Text>
-        </View>
-      </Card>
-
-      {/* TRAINEE LIST */}
-      <Card style={styles.card}>
-        <Text style={styles.sectionTitle}>Trainees</Text>
-
-        {classDetail.traineeAssignations.map((t) => (
-          <View key={t.traineeAssignationId} style={styles.studentRow}>
-            <Text style={styles.studentName}>{t.traineeName}</Text>
-            <Text style={styles.studentId}>{t.traineeId}</Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Instructor</Text>
+            <Text style={styles.value}>{classDetail.instructorName}</Text>
           </View>
-        ))}
-      </Card>
-    </ScrollView>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Group</Text>
+            <Text style={styles.value}>{classDetail.classGroupCode}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Slot</Text>
+            <Text style={styles.value}>{classDetail.slot}</Text>
+          </View>
+        </Card>
+
+        {/* TRAINEE LIST */}
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Trainees</Text>
+
+          {classDetail.traineeAssignations.map((t) => (
+            <View key={t.traineeAssignationId} style={styles.studentRow}>
+              <Text style={styles.studentName}>{t.traineeName}</Text>
+              <Text style={styles.studentId}>{t.traineeId}</Text>
+            </View>
+          ))}
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FAF9FF",
+  },
   container: {
     flex: 1,
     backgroundColor: "#FAF9FF",
@@ -100,12 +119,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
+    paddingTop: 8,
   },
-  backIcon: {
-    fontSize: 28,
-    color: PRIMARY,
-    fontWeight: "bold",
+  backButton: {
     marginRight: 12,
+    padding: 4,
   },
   headerTitle: {
     fontSize: 22,

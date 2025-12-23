@@ -21,6 +21,7 @@ import {
 } from "react-native-paper";
 import { Buffer } from "buffer";
 import { WebView } from "react-native-webview";
+import { useRouter } from "expo-router";
 
 const PRIMARY = "#3620AC";
 
@@ -28,6 +29,7 @@ const STATUS_OPTIONS = ["All", "Draft", "Signed", "Revoked"];
 const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 const DecisionScreen = () => {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   const [decisions, setDecisions] = useState<any[]>([]);
@@ -253,9 +255,15 @@ const DecisionScreen = () => {
     );
   };
 
+  const handleBack = () => {
+    // Navigate back to home tab
+    router.replace("/(tabs)" as any);
+  };
+
   return (
     <>
       <Appbar.Header style={styles.appbar}>
+        <Appbar.BackAction onPress={handleBack} color={PRIMARY} />
         <Appbar.Content title="Decisions" titleStyle={styles.appbarTitle} />
       </Appbar.Header>
 

@@ -288,7 +288,7 @@ export default function CertificateScreen() {
                   onPress={() => handleSign(item.certificateId)}
                   style={styles.actionBtn}
                   labelStyle={styles.actionBtnLabel}
-                  compact
+                  contentStyle={styles.actionBtnContent}
                 >
                   Sign
                 </Button>
@@ -299,7 +299,7 @@ export default function CertificateScreen() {
                 onPress={() => handleView(item)}
                 style={styles.actionBtn}
                 labelStyle={styles.actionBtnLabel}
-                compact
+                contentStyle={styles.actionBtnContent}
               >
                 View
               </Button>
@@ -310,10 +310,15 @@ export default function CertificateScreen() {
     );
   };
 
+  const handleBack = () => {
+    // Navigate back to home tab
+    router.replace("/(tabs)" as any);
+  };
+
   return (
     <>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => router.back()} color={PRIMARY} />
+        <Appbar.BackAction onPress={handleBack} color={PRIMARY} />
         <Appbar.Content title="Certificates" titleStyle={styles.appbarTitle} />
       </Appbar.Header>
 
@@ -354,7 +359,7 @@ export default function CertificateScreen() {
                   textColor={statusFilter === s ? "white" : PRIMARY}
                   style={styles.filterBtn}
                   labelStyle={styles.filterLabel}
-                  compact
+                  contentStyle={styles.filterBtnContent}
                 >
                   {s}
                 </Button>
@@ -372,7 +377,7 @@ export default function CertificateScreen() {
                   textColor={PRIMARY}
                   style={styles.pageSizeBtn}
                   labelStyle={styles.pageSizeLabel}
-                  compact
+                  contentStyle={styles.pageSizeBtnContent}
                 >
                   {pageSize}
                 </Button>
@@ -420,7 +425,7 @@ export default function CertificateScreen() {
                 textColor={PRIMARY}
                 style={styles.paginationBtn}
                 labelStyle={styles.paginationLabel}
-                compact
+                contentStyle={styles.paginationBtnContent}
               >
                 Prev
               </Button>
@@ -436,7 +441,7 @@ export default function CertificateScreen() {
                 textColor={PRIMARY}
                 style={styles.paginationBtn}
                 labelStyle={styles.paginationLabel}
-                compact
+                contentStyle={styles.paginationBtnContent}
               >
                 Next
               </Button>
@@ -483,7 +488,7 @@ const styles = StyleSheet.create({
   },
 
   searchContent: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#1F2937",
     paddingVertical: 0,
   },
@@ -492,7 +497,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
+    marginTop: 4,
   },
 
   filterScroll: {
@@ -501,32 +506,46 @@ const styles = StyleSheet.create({
 
   filterRow: {
     flexDirection: "row",
-    gap: 6,
+    alignItems: "center",
     paddingRight: 8,
+    paddingVertical: 4,
   },
 
   filterBtn: {
-    borderRadius: 16,
-    height: 32,
-    minWidth: 60,
+    borderRadius: 20,
+    marginRight: 8,
+    minWidth: 80,
+  },
+
+  filterBtnContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    height: "auto",
   },
 
   filterLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "600",
-    paddingHorizontal: 4,
+    marginHorizontal: 0,
   },
 
   pageSizeBtn: {
-    borderRadius: 16,
-    height: 32,
-    minWidth: 50,
+    borderRadius: 20,
+    minWidth: 70,
     borderColor: PRIMARY,
+    marginLeft: 8,
+  },
+
+  pageSizeBtnContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    height: "auto",
   },
 
   pageSizeLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "600",
+    marginHorizontal: 0,
   },
 
   card: {
@@ -542,7 +561,7 @@ const styles = StyleSheet.create({
   },
 
   cardContent: {
-    padding: 12,
+    padding: 16,
   },
 
   cardHeader: {
@@ -559,28 +578,29 @@ const styles = StyleSheet.create({
   },
 
   cardTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1E1B4B",
-    marginBottom: 2,
+    marginBottom: 4,
   },
 
   cardSubtitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#6B7280",
+    marginTop: 2,
   },
 
   statusTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     alignSelf: "flex-start",
     flexShrink: 0, // Prevent status tag from shrinking
   },
 
   statusText: {
     color: "white",
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
 
@@ -609,15 +629,15 @@ const styles = StyleSheet.create({
   },
 
   infoLabel: {
-    fontSize: 11,
-    color: "#9CA3AF",
-    fontWeight: "500",
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "600",
     flexShrink: 0,
   },
 
   infoValue: {
-    fontSize: 11,
-    color: "#374151",
+    fontSize: 13,
+    color: "#1F2937",
     fontWeight: "600",
     flexShrink: 1,
     minWidth: 0,
@@ -635,13 +655,20 @@ const styles = StyleSheet.create({
   },
 
   actionBtn: {
-    minWidth: 60,
-    height: 32,
+    minWidth: 80,
+    marginHorizontal: 4,
+  },
+
+  actionBtnContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    height: "auto",
   },
 
   actionBtnLabel: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: "600",
+    marginHorizontal: 0,
   },
 
   pagination: {
@@ -656,18 +683,25 @@ const styles = StyleSheet.create({
   },
 
   paginationBtn: {
-    minWidth: 60,
-    height: 32,
+    minWidth: 80,
+    marginHorizontal: 4,
+  },
+
+  paginationBtnContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    height: "auto",
   },
 
   paginationLabel: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: "600",
+    marginHorizontal: 0,
   },
 
   pageText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#374151",
+    color: "#1F2937",
   },
 });

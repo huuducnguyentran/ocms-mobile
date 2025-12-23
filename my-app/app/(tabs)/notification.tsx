@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import TopBar from "@/components/TopBar";
 import NavBar from "@/components/NavBar";
@@ -43,6 +44,13 @@ export default function NotificationScreen() {
   useEffect(() => {
     loadNotifications();
   }, []);
+
+  // Close NavBar when tab is focused (when switching tabs)
+  useFocusEffect(
+    useCallback(() => {
+      setDrawerVisible(false);
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
