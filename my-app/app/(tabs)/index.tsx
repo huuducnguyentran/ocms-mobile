@@ -195,7 +195,7 @@ function HomeScreenContent() {
                 <Ionicons name="document" size={40} color="#FF6B35" />
               </View>
               <Text style={[styles.cardTitle, { color: "#FF6B35" }]}>
-                Make Report
+                Mark Report
               </Text>
             </TouchableOpacity>
           </View>

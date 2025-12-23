@@ -5,7 +5,6 @@ import {
   View,
   FlatList,
   RefreshControl,
-  Modal,
   ScrollView,
   Alert,
   StyleSheet,
@@ -19,26 +18,33 @@ import {
   Text,
   TextInput,
 } from "react-native-paper";
-import { WebView } from "react-native-webview";
-import { Buffer } from "buffer";
+import { useRouter } from "expo-router";
 
 import {
   getAllCertificates,
-  getCertificateById,
-  getCertificateHtml,
   signCertificate,
   updateCertificateStatus,
 } from "../../service/certificateService";
+import { storage } from "@/utils/storage";
 
 const PRIMARY = "#3620AC";
 
-const STATUS_OPTIONS = ["All", "Pending", "Active", "Expired", "Revoked"];
+const STATUS_OPTIONS = [
+  "All",
+  "Pending",
+  "Active",
+  "Expired",
+  "Revoked",
+  "ChangeInformation",
+];
 const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 export default function CertificateScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -49,14 +55,6 @@ export default function CertificateScreen() {
 
   const [pageSizeMenuVisible, setPageSizeMenuVisible] = useState(false);
 
-  // ===== VIEW / PDF =====
-  const [viewModalVisible, setViewModalVisible] = useState(false);
-  const [viewLoading, setViewLoading] = useState(false);
-  const [selectedCert, setSelectedCert] = useState<any>(null);
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
-  const [loadingPdf, setLoadingPdf] = useState(false);
-
-  const userRole = "Director";
   const isDirector = userRole === "Director";
 
   /* ================= SORT ================= */
@@ -89,8 +87,23 @@ export default function CertificateScreen() {
   };
 
   useEffect(() => {
-    loadData();
-  }, [page, pageSize]);
+    loadUserRole();
+  }, []);
+
+  useEffect(() => {
+    if (userRole) {
+      loadData();
+    }
+  }, [page, pageSize, userRole]);
+
+  const loadUserRole = async () => {
+    try {
+      const role = await storage.getItem("role");
+      setUserRole(role);
+    } catch (error) {
+      console.error("Failed to load user role:", error);
+    }
+  };
 
   /* ================= FILTER ================= */
   useEffect(() => {
@@ -113,26 +126,18 @@ export default function CertificateScreen() {
 
   /* ================= VIEW ================= */
   const handleView = async (item: any) => {
-    setViewModalVisible(true);
-    setViewLoading(true);
-    setPdfBase64(null);
-
-    const res = await getCertificateById(item.certificateId);
-    if (res.success) setSelectedCert(res.data);
-    else Alert.alert("Error", "Failed to load certificate");
-
-    setViewLoading(false);
-  };
-
-  /* ================= PDF ================= */
-  const loadCertificatePdf = async (id: string) => {
-    setLoadingPdf(true);
-    const res = await getCertificateHtml(id);
-    if (res.success && res.isPdf) {
-      const base64Pdf = Buffer.from(res.data, "binary").toString("base64");
-      setPdfBase64(base64Pdf);
+    try {
+      // Navigate to certificate viewer screen
+      router.push({
+        pathname: "/(certificate)/certificate_viewer_screen",
+        params: {
+          certificateId: item.certificateId,
+        },
+      });
+    } catch (error) {
+      console.error("[CertificateScreen] Error navigating:", error);
+      Alert.alert("Error", "Failed to open certificate viewer");
     }
-    setLoadingPdf(false);
   };
 
   /* ================= ACTIONS ================= */
@@ -181,106 +186,211 @@ export default function CertificateScreen() {
         return styles.expiredTag;
       case "Revoked":
         return styles.revokedTag;
+      case "ChangeInformation":
+        return styles.changeInfoTag;
       default:
         return styles.pendingTag;
     }
   };
 
   /* ================= RENDER ================= */
-  const renderItem = ({ item }: any) => (
-    <Card style={styles.card}>
-      <Card.Title
-        title={item.certificateCode}
-        subtitle={`User: ${item.userId}`}
-        titleStyle={styles.cardTitle}
-        subtitleStyle={styles.cardSubtitle}
-      />
+  const renderItem = ({ item }: any) => {
+    const formatDate = (dateString?: string) => {
+      if (!dateString) return "N/A";
+      return new Date(dateString).toLocaleDateString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+    };
 
-      <Card.Content>
-        <View style={styles.footerRow}>
-          <View style={[styles.statusTag, getStatusTagStyle(item.status)]}>
-            <Text style={styles.statusText}>{item.status}</Text>
+    return (
+      <Card style={styles.card} mode="outlined">
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Text
+                style={styles.cardTitle}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.certificateCode || item.certificateId}
+              </Text>
+              <Text
+                style={styles.cardSubtitle}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.userId}
+                {item.issuedByUserId && ` • ${item.issuedByUserId}`}
+              </Text>
+            </View>
+            <View style={[styles.statusTag, getStatusTagStyle(item.status)]}>
+              <Text style={styles.statusText} numberOfLines={1}>
+                {item.status}
+              </Text>
+            </View>
           </View>
 
-          <Button
-            mode="outlined"
-            textColor={PRIMARY}
-            onPress={() => handleView(item)}
-          >
-            View
-          </Button>
-        </View>
-      </Card.Content>
-    </Card>
-  );
+          {(item.issueDate || item.signDate || item.expirationDate) && (
+            <View style={styles.infoRow}>
+              {item.issueDate && (
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel} numberOfLines={1}>
+                    Issue:
+                  </Text>
+                  <Text
+                    style={styles.infoValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {formatDate(item.issueDate)}
+                  </Text>
+                </View>
+              )}
+              {item.signDate && (
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel} numberOfLines={1}>
+                    Signed:
+                  </Text>
+                  <Text
+                    style={styles.infoValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {formatDate(item.signDate)}
+                  </Text>
+                </View>
+              )}
+              {item.expirationDate && (
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel} numberOfLines={1}>
+                    Expires:
+                  </Text>
+                  <Text
+                    style={styles.infoValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {formatDate(item.expirationDate)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={styles.footerRow}>
+            <View style={styles.actionButtons}>
+              {isDirector && item.status === "Pending" && (
+                <Button
+                  mode="contained"
+                  buttonColor={PRIMARY}
+                  onPress={() => handleSign(item.certificateId)}
+                  style={styles.actionBtn}
+                  labelStyle={styles.actionBtnLabel}
+                  compact
+                >
+                  Sign
+                </Button>
+              )}
+              <Button
+                mode="outlined"
+                textColor={PRIMARY}
+                onPress={() => handleView(item)}
+                style={styles.actionBtn}
+                labelStyle={styles.actionBtnLabel}
+                compact
+              >
+                View
+              </Button>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  };
 
   return (
     <>
       <Appbar.Header style={styles.appbar}>
+        <Appbar.BackAction onPress={() => router.back()} color={PRIMARY} />
         <Appbar.Content title="Certificates" titleStyle={styles.appbarTitle} />
       </Appbar.Header>
 
       <View style={styles.container}>
-        {/* SEARCH */}
-        <TextInput
-          mode="outlined"
-          placeholder="Search certificates..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.search}
-          outlineColor={PRIMARY}
-          activeOutlineColor={PRIMARY}
-        />
+        {/* SEARCH & FILTERS */}
+        <View style={styles.topSection}>
+          <TextInput
+            mode="outlined"
+            placeholder="Search certificates..."
+            placeholderTextColor="#9CA3AF"
+            value={search}
+            onChangeText={setSearch}
+            style={styles.search}
+            contentStyle={styles.searchContent}
+            outlineColor={PRIMARY}
+            activeOutlineColor={PRIMARY}
+            textColor="#1F2937"
+            dense
+            left={<TextInput.Icon icon="magnify" />}
+          />
 
-        {/* STATUS FILTER */}
-        <View style={styles.filterRow}>
-          {STATUS_OPTIONS.map((s) => (
-            <Button
-              key={s}
-              mode={statusFilter === s ? "contained" : "outlined"}
-              onPress={() => {
-                setStatusFilter(s);
-                setPage(1);
-              }}
-              buttonColor={statusFilter === s ? PRIMARY : undefined}
-              textColor={statusFilter === s ? "white" : PRIMARY}
-              style={styles.filterBtn}
+          <View style={styles.controlsRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterScroll}
+              contentContainerStyle={styles.filterRow}
             >
-              {s}
-            </Button>
-          ))}
-        </View>
+              {STATUS_OPTIONS.map((s) => (
+                <Button
+                  key={s}
+                  mode={statusFilter === s ? "contained" : "outlined"}
+                  onPress={() => {
+                    setStatusFilter(s);
+                    setPage(1);
+                  }}
+                  buttonColor={statusFilter === s ? PRIMARY : undefined}
+                  textColor={statusFilter === s ? "white" : PRIMARY}
+                  style={styles.filterBtn}
+                  labelStyle={styles.filterLabel}
+                  compact
+                >
+                  {s}
+                </Button>
+              ))}
+            </ScrollView>
 
-        {/* TAKE DROPDOWN */}
-        <View style={styles.pageSizeRow}>
-          <Text style={styles.pageSizeLabel}>Rows per page</Text>
-          <Menu
-            visible={pageSizeMenuVisible}
-            onDismiss={() => setPageSizeMenuVisible(false)}
-            anchor={
-              <Button
-                mode="outlined"
-                icon="chevron-down"
-                onPress={() => setPageSizeMenuVisible(true)}
-                textColor={PRIMARY}
-                style={styles.pageSizeDropdown}
-              >
-                {pageSize}
-              </Button>
-            }
-          >
-            {PAGE_SIZE_OPTIONS.map((s) => (
-              <Menu.Item
-                key={s}
-                title={`${s}`}
-                onPress={() => {
-                  setPageSize(s);
-                  setPage(1);
-                  setPageSizeMenuVisible(false);
-                }}
-              />
-            ))}
-          </Menu>
+            <Menu
+              visible={pageSizeMenuVisible}
+              onDismiss={() => setPageSizeMenuVisible(false)}
+              anchor={
+                <Button
+                  mode="outlined"
+                  icon="chevron-down"
+                  onPress={() => setPageSizeMenuVisible(true)}
+                  textColor={PRIMARY}
+                  style={styles.pageSizeBtn}
+                  labelStyle={styles.pageSizeLabel}
+                  compact
+                >
+                  {pageSize}
+                </Button>
+              }
+            >
+              {PAGE_SIZE_OPTIONS.map((s) => (
+                <Menu.Item
+                  key={s}
+                  title={`${s}`}
+                  onPress={() => {
+                    setPageSize(s);
+                    setPage(1);
+                    setPageSizeMenuVisible(false);
+                  }}
+                />
+              ))}
+            </Menu>
+          </View>
         </View>
 
         {/* LIST */}
@@ -308,12 +418,15 @@ export default function CertificateScreen() {
                 disabled={page === 1}
                 onPress={() => setPage((p) => p - 1)}
                 textColor={PRIMARY}
+                style={styles.paginationBtn}
+                labelStyle={styles.paginationLabel}
+                compact
               >
-                Previous
+                Prev
               </Button>
 
               <Text style={styles.pageText}>
-                Page {page} / {totalPages}
+                {page} / {totalPages}
               </Text>
 
               <Button
@@ -321,6 +434,9 @@ export default function CertificateScreen() {
                 disabled={page === totalPages}
                 onPress={() => setPage((p) => p + 1)}
                 textColor={PRIMARY}
+                style={styles.paginationBtn}
+                labelStyle={styles.paginationLabel}
+                compact
               >
                 Next
               </Button>
@@ -332,65 +448,226 @@ export default function CertificateScreen() {
   );
 }
 
-/* ================= STYLES (MATCH COURSE PAGE) ================= */
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
-  appbar: { backgroundColor: "white", elevation: 2 },
-  appbarTitle: { color: PRIMARY, fontWeight: "800" },
+  appbar: {
+    backgroundColor: "white",
+    elevation: 1,
+    shadowOpacity: 0.1,
+  },
+  appbarTitle: {
+    color: PRIMARY,
+    fontWeight: "700",
+    fontSize: 18,
+  },
 
-  container: { flex: 1, padding: 16, backgroundColor: "#F4F3FF" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FA",
+  },
 
-  search: { marginBottom: 12, backgroundColor: "white" },
+  topSection: {
+    backgroundColor: "white",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+
+  search: {
+    marginBottom: 8,
+    backgroundColor: "white",
+    height: 44,
+  },
+
+  searchContent: {
+    fontSize: 14,
+    color: "#1F2937",
+    paddingVertical: 0,
+  },
+
+  controlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+
+  filterScroll: {
+    flex: 1,
+  },
 
   filterRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
+    gap: 6,
+    paddingRight: 8,
   },
-  filterBtn: { borderRadius: 20 },
 
-  pageSizeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+  filterBtn: {
+    borderRadius: 16,
+    height: 32,
+    minWidth: 60,
   },
-  pageSizeLabel: { fontWeight: "700", color: "#2D2A6E" },
-  pageSizeDropdown: { borderRadius: 12, borderColor: PRIMARY },
+
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    paddingHorizontal: 4,
+  },
+
+  pageSizeBtn: {
+    borderRadius: 16,
+    height: 32,
+    minWidth: 50,
+    borderColor: PRIMARY,
+  },
+
+  pageSizeLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
 
   card: {
-    marginBottom: 12,
-    borderRadius: 16,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 12,
     backgroundColor: "white",
-    borderLeftWidth: 5,
-    borderLeftColor: PRIMARY,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
-  cardTitle: { fontWeight: "700", color: "#1E1B4B" },
-  cardSubtitle: { color: "#4B5563" },
 
-  footerRow: {
+  cardContent: {
+    padding: 12,
+  },
+
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    marginBottom: 8,
+    gap: 8,
+  },
+
+  cardHeaderLeft: {
+    flex: 1,
+    minWidth: 0, // Important for text truncation
+  },
+
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1E1B4B",
+    marginBottom: 2,
+  },
+
+  cardSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
   },
 
   statusTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+    flexShrink: 0, // Prevent status tag from shrinking
   },
-  statusText: { color: "white", fontSize: 12, fontWeight: "700" },
+
+  statusText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "700",
+  },
 
   pendingTag: { backgroundColor: "#F1C40F" },
   activeTag: { backgroundColor: "#2ECC71" },
   expiredTag: { backgroundColor: "#95A5A6" },
   revokedTag: { backgroundColor: "#E74C3C" },
+  changeInfoTag: { backgroundColor: "#9B59B6" },
+
+  infoRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+
+  infoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+
+  infoLabel: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    fontWeight: "500",
+    flexShrink: 0,
+  },
+
+  infoValue: {
+    fontSize: 11,
+    color: "#374151",
+    fontWeight: "600",
+    flexShrink: 1,
+    minWidth: 0,
+  },
+
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 4,
+  },
+
+  actionButtons: {
+    flexDirection: "row",
+    gap: 6,
+  },
+
+  actionBtn: {
+    minWidth: 60,
+    height: 32,
+  },
+
+  actionBtnLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
 
   pagination: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 14,
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "white",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
   },
-  pageText: { fontWeight: "800", color: "#2D2A6E" },
+
+  paginationBtn: {
+    minWidth: 60,
+    height: 32,
+  },
+
+  paginationLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+
+  pageText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#374151",
+  },
 });
