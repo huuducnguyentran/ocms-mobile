@@ -143,13 +143,7 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  {
-    key: "8",
-    label: "Academic Transcrift",
-    icon: "book",
-    path: "/curriculum_screen",
-    roles: ["Trainee"],
-  },
+
 
   // ──────────────────────────────
   // 📨 Requests

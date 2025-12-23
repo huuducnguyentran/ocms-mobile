@@ -31,6 +31,7 @@ export default function TabLayout() {
   };
 
   // Determine tabs based on role
+  // Only show tabs for Trainee and Director
   const getTabsForRole = () => {
     // Show default tabs while loading
     if (loading) {
@@ -41,31 +42,32 @@ export default function TabLayout() {
           title: "Notification",
           icon: "notifications",
         },
+        { name: "certificate", title: "Certificate", icon: "document-text" },
       ];
     }
 
-    switch (role) {
-      case "Trainee":
-      case "Director":
-        return [
-          { name: "index", title: "Home", icon: "home" },
-          {
-            name: "notification",
-            title: "Notification",
-            icon: "notifications",
-          },
-          { name: "certificate", title: "Certificate", icon: "document-text" },
-        ];
-      default:
-        return [
-          { name: "index", title: "Home", icon: "home" },
-          {
-            name: "notification",
-            title: "Notification",
-            icon: "notifications",
-          },
-        ];
+    // Only Trainee and Director get tabs
+    if (role === "Trainee" || role === "Director") {
+      return [
+        { name: "index", title: "Home", icon: "home" },
+        {
+          name: "notification",
+          title: "Notification",
+          icon: "notifications",
+        },
+        { name: "certificate", title: "Certificate", icon: "document-text" },
+      ];
     }
+
+    // Other roles: no tabs (empty array will show default)
+    return [
+      { name: "index", title: "Home", icon: "home" },
+      {
+        name: "notification",
+        title: "Notification",
+        icon: "notifications",
+      },
+    ];
   };
 
   const tabs = getTabsForRole();
@@ -151,6 +153,8 @@ export default function TabLayout() {
         tabBarInactiveTintColor: "#999",
         headerShown: false,
         tabBarButton: HapticTab,
+        // Ensure tabs are always visible
+        tabBarHideOnKeyboard: false,
         tabBarStyle: {
           backgroundColor: "#FFFFFF",
           borderTopWidth: 3,
@@ -171,6 +175,8 @@ export default function TabLayout() {
           // Add subtle background gradient effect with border
           borderTopLeftRadius: 0,
           borderTopRightRadius: 0,
+          // Always show tabs
+          display: "flex",
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -198,11 +204,17 @@ export default function TabLayout() {
           }}
         />
       ))}
-      {/* Hide explore tab if it exists */}
+      {/* Hide explore and grade tabs */}
       <Tabs.Screen
         name="explore"
         options={{
           href: null, // Hide this tab
+        }}
+      />
+      <Tabs.Screen
+        name="grade"
+        options={{
+          href: null, // Hide grade tab - only Trainee and Director use tabs
         }}
       />
     </Tabs>

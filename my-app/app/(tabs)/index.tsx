@@ -9,11 +9,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import TopBar from "@/components/TopBar";
 import NavBar from "@/components/NavBar";
 import { storage } from "@/utils/storage";
+import { useCallback } from "react";
 
 function HomeScreenContent() {
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -23,6 +24,13 @@ function HomeScreenContent() {
   useEffect(() => {
     loadRole();
   }, []);
+
+  // Close NavBar when tab is focused (when switching tabs)
+  useFocusEffect(
+    useCallback(() => {
+      setDrawerVisible(false);
+    }, [])
+  );
 
   const loadRole = async () => {
     try {
@@ -112,7 +120,10 @@ function HomeScreenContent() {
               <TouchableOpacity
                 key={card.id}
                 style={styles.card}
-                onPress={card.onPress}
+                onPress={() => {
+                  setDrawerVisible(false); // Close NavBar before navigating
+                  card.onPress();
+                }}
                 activeOpacity={0.7}
               >
                 <View
@@ -144,34 +155,103 @@ function HomeScreenContent() {
             </View>
           </View>
           <View style={styles.cardsRow}>
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push("/(class)/class_screen")}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[styles.iconContainer, { backgroundColor: "#FF6B3520" }]}
-              >
-                <Ionicons name="school-outline" size={40} color="#FF6B35" />
-              </View>
-              <Text style={[styles.cardTitle, { color: "#FF6B35" }]}>
-                Class
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push("/(class)/attendance_list_screen")}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[styles.iconContainer, { backgroundColor: "#FF6B3520" }]}
-              >
-                <Ionicons name="time-outline" size={40} color="#FF6B35" />
-              </View>
-              <Text style={[styles.cardTitle, { color: "#FF6B35" }]}>
-                Attendance
-              </Text>
-            </TouchableOpacity>
+            {role === "Director" ? (
+              <>
+                {/* Director: Plan and Decision */}
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => {
+                    setDrawerVisible(false); // Close NavBar before navigating
+                    router.push("/(plan)/plan_status_screen");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: "#FF6B3520" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={40}
+                      color="#FF6B35"
+                    />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: "#FF6B35" }]}>
+                    Plan
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => {
+                    setDrawerVisible(false); // Close NavBar before navigating
+                    router.push("/(decision)/decision_screen");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: "#FF6B3520" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="checkmark-circle-outline"
+                      size={40}
+                      color="#FF6B35"
+                    />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: "#FF6B35" }]}>
+                    Decision
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {/* Trainee and others: Class and Attendance */}
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => {
+                    setDrawerVisible(false); // Close NavBar before navigating
+                    router.push("/(class)/class_screen");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: "#FF6B3520" },
+                    ]}
+                  >
+                    <Ionicons name="school-outline" size={40} color="#FF6B35" />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: "#FF6B35" }]}>
+                    Class
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => {
+                    setDrawerVisible(false); // Close NavBar before navigating
+                    router.push("/(class)/attendance_list_screen");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: "#FF6B3520" },
+                    ]}
+                  >
+                    <Ionicons name="time-outline" size={40} color="#FF6B35" />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: "#FF6B35" }]}>
+                    Attendance
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 
@@ -186,7 +266,10 @@ function HomeScreenContent() {
             </View>
             <TouchableOpacity
               style={styles.card}
-              onPress={() => router.push("/(make-report)/make_report_screen")}
+              onPress={() => {
+                setDrawerVisible(false); // Close NavBar before navigating
+                router.push("/(make-report)/make_report_screen");
+              }}
               activeOpacity={0.7}
             >
               <View

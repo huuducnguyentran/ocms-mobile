@@ -5,7 +5,7 @@ import NavBar from "@/components/NavBar";
 import { useState } from "react";
 
 export default function GradeLayout() {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false); // Start with NavBar closed
 
   return (
     <View style={styles.container}>

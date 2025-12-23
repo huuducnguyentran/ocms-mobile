@@ -13,6 +13,7 @@ import { WebView } from "react-native-webview";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import * as IntentLauncher from "expo-intent-launcher";
+import { Ionicons } from "@expo/vector-icons";
 
 // Try to import react-native-pdf, but handle if it's not available
 let Pdf: any = null;
@@ -320,13 +321,18 @@ export default function CertificateViewerScreen() {
     }
   };
 
+  const handleBack = () => {
+    // Navigate back to certificate tab instead of router.back()
+    router.replace("/(tabs)/certificate" as any);
+  };
+
   /* ================= LOADING ================= */
   if (loading) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backIcon}>←</Text>
+          <TouchableOpacity onPress={handleBack}>
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Certificate</Text>
         </View>
@@ -343,8 +349,8 @@ export default function CertificateViewerScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backIcon}>←</Text>
+          <TouchableOpacity onPress={handleBack}>
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Certificate</Text>
         </View>
@@ -360,8 +366,8 @@ export default function CertificateViewerScreen() {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backIcon}>←</Text>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={24} color={PRIMARY} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Certificate</Text>
       </View>
@@ -481,11 +487,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EEE",
   },
 
-  backIcon: {
-    fontSize: 28,
-    color: PRIMARY,
-    fontWeight: "bold",
+  backButton: {
     marginRight: 12,
+    padding: 4,
   },
 
   headerTitle: {

@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   TextInput,
+  SafeAreaView,
 } from "react-native";
 import { Checkbox } from "react-native-paper";
 import {
@@ -17,6 +18,8 @@ import {
   rejectPlansBatch,
   TrainingPlan,
 } from "@/service/planService";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 /* ================= CONSTANTS ================= */
 const PRIMARY = "#3620AC";
@@ -25,6 +28,7 @@ type StatusType = "Pending" | "Approved" | "Rejected";
 
 /* ================= SCREEN ================= */
 export default function PlanStatusScreen() {
+  const router = useRouter();
   const [status, setStatus] = useState<StatusType>("Pending");
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -102,168 +106,200 @@ export default function PlanStatusScreen() {
     loadPlans();
   };
 
+  const handleBack = () => {
+    // Navigate back to home tab
+    router.replace("/(tabs)" as any);
+  };
+
   /* ================= RENDER ================= */
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Training Plan Status</Text>
-
-      {/* ===== STATUS TABS ===== */}
-      <View style={styles.tabsWrapper}>
-        {(["Pending", "Approved", "Rejected"] as StatusType[]).map((s) => (
-          <TouchableOpacity
-            key={s}
-            onPress={() => setStatus(s)}
-            style={[
-              styles.tabButton,
-              status === s && { backgroundColor: PRIMARY },
-            ]}
-          >
-            <Text
-              style={[styles.tabText, status === s && styles.tabTextActive]}
-            >
-              {s}
-            </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
           </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* ===== SEARCH ===== */}
-      <TextInput
-        placeholder="Search plan name or description..."
-        value={search}
-        onChangeText={(t) => {
-          setSearch(t);
-          setPage(1);
-        }}
-        style={styles.searchInput}
-        placeholderTextColor="#9CA3AF"
-      />
-
-      {/* ===== BATCH ACTIONS ===== */}
-      {status === "Pending" && selectedIds.length > 0 && (
-        <View style={styles.batchRow}>
-          <TouchableOpacity
-            style={[styles.batchBtn, { backgroundColor: PRIMARY }]}
-            onPress={approveBatch}
-          >
-            <Text style={styles.batchText}>Approve Selected</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.batchBtn, { backgroundColor: "#DC2626" }]}
-            onPress={rejectBatch}
-          >
-            <Text style={styles.batchText}>Reject Selected</Text>
-          </TouchableOpacity>
+          <Text style={styles.title}>Training Plan Status</Text>
         </View>
-      )}
 
-      {/* ===== LIST ===== */}
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={PRIMARY}
-          style={{ marginTop: 40 }}
+        {/* ===== STATUS TABS ===== */}
+        <View style={styles.tabsWrapper}>
+          {(["Pending", "Approved", "Rejected"] as StatusType[]).map((s) => (
+            <TouchableOpacity
+              key={s}
+              onPress={() => setStatus(s)}
+              style={[
+                styles.tabButton,
+                status === s && { backgroundColor: PRIMARY },
+              ]}
+            >
+              <Text
+                style={[styles.tabText, status === s && styles.tabTextActive]}
+              >
+                {s}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ===== SEARCH ===== */}
+        <TextInput
+          placeholder="Search plan name or description..."
+          value={search}
+          onChangeText={(t) => {
+            setSearch(t);
+            setPage(1);
+          }}
+          style={styles.searchInput}
+          placeholderTextColor="#9CA3AF"
         />
-      ) : (
-        <FlatList
-          data={pagedPlans}
-          keyExtractor={(item) => item.planId}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No plans found</Text>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              {status === "Pending" && (
-                <Checkbox
-                  status={
-                    selectedIds.includes(item.planId) ? "checked" : "unchecked"
-                  }
-                  onPress={() => toggleSelect(item.planId)}
-                  color={PRIMARY}
-                />
-              )}
 
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.planName}</Text>
-                <Text style={styles.cardSubtitle}>ID: {item.planId}</Text>
+        {/* ===== BATCH ACTIONS ===== */}
+        {status === "Pending" && selectedIds.length > 0 && (
+          <View style={styles.batchRow}>
+            <TouchableOpacity
+              style={[styles.batchBtn, { backgroundColor: PRIMARY }]}
+              onPress={approveBatch}
+            >
+              <Text style={styles.batchText}>Approve Selected</Text>
+            </TouchableOpacity>
 
-                <Text style={styles.cardDesc} numberOfLines={2}>
-                  {item.description}
-                </Text>
+            <TouchableOpacity
+              style={[styles.batchBtn, { backgroundColor: "#DC2626" }]}
+              onPress={rejectBatch}
+            >
+              <Text style={styles.batchText}>Reject Selected</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-                <Text style={styles.cardDate}>
-                  Created: {new Date(item.createdAt).toLocaleString()}
-                </Text>
-
+        {/* ===== LIST ===== */}
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color={PRIMARY}
+            style={{ marginTop: 40 }}
+          />
+        ) : (
+          <FlatList
+            data={pagedPlans}
+            keyExtractor={(item) => item.planId}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No plans found</Text>
+            }
+            renderItem={({ item }) => (
+              <View style={styles.card}>
                 {status === "Pending" && (
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity
-                      style={[styles.smallBtn, { backgroundColor: PRIMARY }]}
-                      onPress={() => approveSingle(item.planId)}
-                    >
-                      <Text style={styles.smallBtnText}>Approve</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.smallBtn, { backgroundColor: "#DC2626" }]}
-                      onPress={() => rejectSingle(item.planId)}
-                    >
-                      <Text style={styles.smallBtnText}>Reject</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <Checkbox
+                    status={
+                      selectedIds.includes(item.planId)
+                        ? "checked"
+                        : "unchecked"
+                    }
+                    onPress={() => toggleSelect(item.planId)}
+                    color={PRIMARY}
+                  />
                 )}
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{item.planName}</Text>
+                  <Text style={styles.cardSubtitle}>ID: {item.planId}</Text>
+
+                  <Text style={styles.cardDesc} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+
+                  <Text style={styles.cardDate}>
+                    Created: {new Date(item.createdAt).toLocaleString()}
+                  </Text>
+
+                  {status === "Pending" && (
+                    <View style={styles.cardActions}>
+                      <TouchableOpacity
+                        style={[styles.smallBtn, { backgroundColor: PRIMARY }]}
+                        onPress={() => approveSingle(item.planId)}
+                      >
+                        <Text style={styles.smallBtnText}>Approve</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.smallBtn,
+                          { backgroundColor: "#DC2626" },
+                        ]}
+                        onPress={() => rejectSingle(item.planId)}
+                      >
+                        <Text style={styles.smallBtnText}>Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
-        />
-      )}
+            )}
+          />
+        )}
 
-      {/* ===== PAGINATION ===== */}
-      <View style={styles.paginationRow}>
-        <Text style={styles.paginationText}>
-          Page {page} / {totalPages || 1}
-        </Text>
+        {/* ===== PAGINATION ===== */}
+        <View style={styles.paginationRow}>
+          <Text style={styles.paginationText}>
+            Page {page} / {totalPages || 1}
+          </Text>
 
-        <View style={styles.paginationBtns}>
-          <TouchableOpacity
-            disabled={page === 1}
-            onPress={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            <Text style={[styles.pageBtn, page === 1 && styles.disabled]}>
-              Prev
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            disabled={page === totalPages}
-            onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            <Text
-              style={[styles.pageBtn, page === totalPages && styles.disabled]}
+          <View style={styles.paginationBtns}>
+            <TouchableOpacity
+              disabled={page === 1}
+              onPress={() => setPage((p) => Math.max(1, p - 1))}
             >
-              Next
-            </Text>
-          </TouchableOpacity>
+              <Text style={[styles.pageBtn, page === 1 && styles.disabled]}>
+                Prev
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              disabled={page === totalPages}
+              onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <Text
+                style={[styles.pageBtn, page === totalPages && styles.disabled]}
+              >
+                Next
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 /* ================= STYLES ================= */
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     padding: 16,
     backgroundColor: "#FFFFFF",
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingTop: 8,
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
+  },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "800",
     color: PRIMARY,
-    marginBottom: 12,
+    flex: 1,
   },
 
   tabsWrapper: {
