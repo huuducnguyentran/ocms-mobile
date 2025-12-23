@@ -28,6 +28,16 @@ export const getAllCertificates = async (
     const res = await axiosInstance.get(
       `${CERTIFICATE_URLS.GET_ALL_CERTIFICATE}?skip=${skip}&take=${take}`
     );
+    // Handle nested response structure: { data: { data: [...], totalCount, ... }, success, message }
+    if (res.data && res.data.data && res.data.data.data) {
+      // Response has nested structure: res.data.data contains the pagination data
+      return {
+        success: res.data.success || true,
+        message: res.data.message || "Retrieved certificates",
+        data: res.data.data, // This contains { data: [...], totalCount, pageNumber, etc. }
+      };
+    }
+    // Fallback to direct structure
     return res.data;
   } catch (error) {
     return {

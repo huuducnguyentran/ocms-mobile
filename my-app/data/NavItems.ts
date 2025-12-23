@@ -335,7 +335,7 @@ const navItems: NavItem[] = [
   },
   {
     key: "19",
-    label: "Make report",
+    label: "Mark report",
     icon: "FileDoneOutlined",
     path: "/make_report_screen",
     roles: ["Trainee"],
