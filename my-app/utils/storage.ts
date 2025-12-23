@@ -32,9 +32,19 @@ export const storage = {
   async clear(): Promise<void> {
     try {
       await AsyncStorage.clear();
-    } catch (error) {
-      console.error('Error clearing storage:', error);
-      throw error;
+    } catch (error: any) {
+      // On iOS, AsyncStorage.clear() sometimes tries to delete a directory that doesn't exist
+      // This is a known issue and can be safely ignored
+      if (
+        error?.code === 4 ||
+        error?.domain === "NSCocoaErrorDomain" ||
+        error?.message?.includes("couldn't be removed")
+      ) {
+        // Silently ignore - this is a known iOS issue where the directory is already removed
+        return;
+      }
+      // For other errors, log but don't throw - allow app to continue
+      console.warn("Storage clear warning (can be ignored):", error);
     }
   },
 };

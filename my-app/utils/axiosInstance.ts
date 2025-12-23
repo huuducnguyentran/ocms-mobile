@@ -79,7 +79,12 @@ export const checkAccountStatus = async (): Promise<boolean> => {
     // Handle when cannot connect to API
     if (axiosError.response?.status === 401) {
       // Token expired or invalid
-      await storage.clear();
+      try {
+        await storage.clear();
+      } catch (clearError) {
+        // Ignore storage clear errors (known iOS issue)
+        console.warn("Storage clear warning (can be ignored):", clearError);
+      }
       router.replace("/login");
     }
     return false;
@@ -108,7 +113,12 @@ axiosInstance.interceptors.response.use(
 
     // If 401 status (unauthorized), clear session and redirect to login
     if (error.response?.status === 401) {
-      await storage.clear();
+      try {
+        await storage.clear();
+      } catch (clearError) {
+        // Ignore storage clear errors (known iOS issue)
+        console.warn("Storage clear warning (can be ignored):", clearError);
+      }
       router.replace("/login");
       return Promise.reject(error);
     }

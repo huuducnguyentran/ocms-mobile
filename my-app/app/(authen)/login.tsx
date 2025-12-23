@@ -4,6 +4,7 @@ import { BASE_URL } from "@/utils/environment";
 import { storage } from "@/utils/storage";
 import { router } from "expo-router";
 import React, { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
   Alert,
@@ -229,6 +230,28 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
+            {/* Divider */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Face Login Button */}
+            <TouchableOpacity
+              style={[
+                styles.faceLoginButton,
+                loading && styles.faceLoginButtonDisabled,
+              ]}
+              onPress={() => router.push("/(authen)/face-login-camera-screen" as any)}
+              disabled={loading}
+            >
+              <Ionicons name="camera" size={20} color="#fff" />
+              <Text style={styles.faceLoginButtonText}>
+                Đăng nhập bằng khuôn mặt
+              </Text>
+            </TouchableOpacity>
+
             {/* Forgot Password Link */}
             <TouchableOpacity
               style={styles.forgotPasswordButton}
@@ -365,6 +388,46 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: "#fff",
     fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(0, 188, 212, 0.3)",
+  },
+  dividerText: {
+    marginHorizontal: 15,
+    color: "#666",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  faceLoginButton: {
+    backgroundColor: "#5A39F0",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 25,
+    shadowColor: "#5A39F0",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  faceLoginButtonDisabled: {
+    opacity: 0.6,
+  },
+  faceLoginButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "600",
     letterSpacing: 0.5,
   },

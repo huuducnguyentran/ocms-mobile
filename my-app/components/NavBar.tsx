@@ -35,15 +35,25 @@ export default function NavBar({ visible, onClose }: NavBarProps) {
       const userRole = await storage.getItem("role");
       setRole(userRole);
 
-      // Fetch profile for avatar and name
+      // Check if user has token before fetching profile
+      const token = await storage.getItem("token");
+      if (!token) {
+        // No token, user not logged in - don't fetch profile
+        return;
+      }
+
+      // Fetch profile only if user is authenticated
       try {
         const response = await profileService.getProfile();
         setProfile(response.data);
         if (response.data.fullName) {
           await storage.setItem("fullName", response.data.fullName);
         }
-      } catch (error) {
-        console.error("Failed to fetch profile:", error);
+      } catch (error: any) {
+        // Don't log 401 errors - user is not authenticated
+        if (error.response?.status !== 401) {
+          console.error("Failed to fetch profile:", error);
+        }
       }
     } catch (error) {
       console.error("Failed to load user data:", error);

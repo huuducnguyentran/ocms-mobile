@@ -5,11 +5,14 @@ import {
   Platform,
   StyleSheet,
   Text,
+  TouchableOpacity,
 } from "react-native";
 import { WebView } from "react-native-webview";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { getCertificateHtml } from "@/service/certificateService";
 import { Buffer } from "buffer";
+
+const PRIMARY = "#3620AC";
 
 type CertificateResponse = {
   success: boolean;
@@ -19,13 +22,14 @@ type CertificateResponse = {
 
 export default function CertificateViewerScreen() {
   const { certificateId } = useLocalSearchParams<{ certificateId: string }>();
+  const router = useRouter();
 
   const webViewRef = useRef<WebView>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isPdf, setIsPdf] = useState(false);
 
   useEffect(() => {
     if (certificateId) {
@@ -38,6 +42,8 @@ export default function CertificateViewerScreen() {
     try {
       setLoading(true);
       setError(null);
+      setIsPdf(false);
+      setHtmlContent(null);
 
       const res: CertificateResponse = await getCertificateHtml(id);
 
@@ -45,7 +51,7 @@ export default function CertificateViewerScreen() {
         throw new Error("Failed to load certificate");
       }
 
-      // Convert ArrayBuffer → Blob URL (WEB)
+      // ================= WEB PLATFORM =================
       if (Platform.OS === "web") {
         const blob = new Blob([res.data], {
           type: res.isPdf ? "application/pdf" : "text/html",
@@ -55,7 +61,7 @@ export default function CertificateViewerScreen() {
 
         if (res.isPdf) {
           window.open(url);
-          setPdfUrl(url);
+          setIsPdf(true);
         } else {
           const htmlText = await blob.text();
           setHtmlContent(htmlText);
@@ -65,21 +71,78 @@ export default function CertificateViewerScreen() {
         return;
       }
 
-      // ================= PDF =================
+      // ================= PDF - MOBILE (iOS & Android) =================
       if (res.isPdf) {
-        const base64 = Buffer.from(res.data).toString("base64");
-        const rawPdfUrl = `data:application/pdf;base64,${base64}`;
+        setIsPdf(true);
 
-        // ANDROID → Google PDF Viewer (stable)
-        if (Platform.OS === "android") {
-          const googleViewerUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(
-            rawPdfUrl
-          )}`;
-          setPdfUrl(googleViewerUrl);
-        } else {
-          // iOS
-          setPdfUrl(rawPdfUrl);
-        }
+        // Convert ArrayBuffer to base64
+        const base64 = Buffer.from(res.data).toString("base64");
+
+        console.log(
+          "[CertificateViewer] PDF detected, size:",
+          res.data.byteLength,
+          "bytes (base64:",
+          base64.length,
+          "chars)"
+        );
+
+        // Create HTML with embedded PDF using base64
+        // Use object/embed tags for better mobile support
+        const pdfHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #fff;
+    }
+    .pdf-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    object, embed, iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .fallback {
+      display: none;
+      padding: 20px;
+      text-align: center;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="pdf-container">
+    <object data="data:application/pdf;base64,${base64}" type="application/pdf" width="100%" height="100%">
+      <embed src="data:application/pdf;base64,${base64}" type="application/pdf" width="100%" height="100%" />
+      <iframe src="data:application/pdf;base64,${base64}" width="100%" height="100%">
+        <div class="fallback">
+          <p>PDF không thể hiển thị. Vui lòng tải về để xem.</p>
+        </div>
+      </iframe>
+    </object>
+  </div>
+</body>
+</html>`;
+
+        setHtmlContent(pdfHtml);
+        console.log(
+          "[CertificateViewer] PDF embedded in HTML (works in Expo Go)"
+        );
 
         setLoading(false);
         return;
@@ -88,10 +151,11 @@ export default function CertificateViewerScreen() {
       // ================= HTML =================
       const htmlDecoded = Buffer.from(res.data).toString("utf8");
       setHtmlContent(htmlDecoded);
+      setIsPdf(false);
       setLoading(false);
     } catch (err) {
       console.error("[CertificateViewer] Error:", err);
-      setError("Unable to load certificate");
+      setError("Unable to load certificate. Please try again.");
       setLoading(false);
     }
   };
@@ -99,9 +163,17 @@ export default function CertificateViewerScreen() {
   /* ================= LOADING ================= */
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3620AC" />
-        <Text style={styles.loadingText}>Loading certificate...</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Certificate</Text>
+        </View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={PRIMARY} />
+          <Text style={styles.loadingText}>Loading certificate...</Text>
+        </View>
       </View>
     );
   }
@@ -109,8 +181,16 @@ export default function CertificateViewerScreen() {
   /* ================= ERROR ================= */
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Certificate</Text>
+        </View>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
       </View>
     );
   }
@@ -118,23 +198,31 @@ export default function CertificateViewerScreen() {
   /* ================= RENDER ================= */
   return (
     <View style={styles.container}>
-      {pdfUrl ? (
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Certificate</Text>
+      </View>
+
+      {/* WEBVIEW */}
+      {htmlContent ? (
         <WebView
           ref={webViewRef}
-          source={{ uri: pdfUrl }}
-          style={{ flex: 1 }}
-          startInLoadingState
+          originWhitelist={["*"]}
+          source={{ html: htmlContent }}
+          style={styles.webview}
           javaScriptEnabled
           domStorageEnabled
-          originWhitelist={["*"]}
+          startInLoadingState
+          onError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.error("[WebView] HTML Error:", nativeEvent);
+            setError("Failed to load certificate content.");
+          }}
         />
-      ) : (
-        <WebView
-          originWhitelist={["*"]}
-          source={{ html: htmlContent! }}
-          style={{ flex: 1 }}
-        />
-      )}
+      ) : null}
     </View>
   );
 }
@@ -147,6 +235,30 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
 
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEE",
+  },
+
+  backIcon: {
+    fontSize: 28,
+    color: PRIMARY,
+    fontWeight: "bold",
+    marginRight: 12,
+  },
+
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: PRIMARY,
+  },
+
   center: {
     flex: 1,
     justifyContent: "center",
@@ -156,7 +268,7 @@ const styles = StyleSheet.create({
 
   loadingText: {
     marginTop: 10,
-    color: "#3620AC",
+    color: PRIMARY,
     fontSize: 14,
   },
 
@@ -164,5 +276,16 @@ const styles = StyleSheet.create({
     color: "#dc2626",
     fontSize: 16,
     textAlign: "center",
+  },
+
+  pdf: {
+    flex: 1,
+    width: "100%",
+    backgroundColor: "#fff",
+  },
+
+  webview: {
+    flex: 1,
+    backgroundColor: "#fff",
   },
 });

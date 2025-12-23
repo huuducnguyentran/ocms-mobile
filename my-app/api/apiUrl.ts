@@ -251,3 +251,8 @@ export const USER_DEPARTMENT_URLS = {
   LEAVE: "/UserDepartment/leave",
   DELETE: "/UserDepartment",
 };
+
+export const FACE_RECOGNITION_URLS = {
+  REGISTER: "/api/FaceRecognition/api/register",
+  SCAN: "/api/FaceRecognition/api/scan",
+};
