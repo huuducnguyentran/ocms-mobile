@@ -68,7 +68,7 @@ export default function MyCertificateScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push("/(tabs)")}
           >
             <Ionicons name="arrow-back" size={24} color="#3620AC" />
           </TouchableOpacity>
